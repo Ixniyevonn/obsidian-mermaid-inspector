@@ -1,0 +1,14 @@
+flowchart TD
+  subgraph Root
+    Start[Start] --> Core
+    Core --> Done[Done]
+
+    subgraph Core
+      A[Validate] --> B[Transform]
+      B --> C[Persist]
+
+      subgraph Users
+        U1[Auth] --> U2[Profile]
+      end
+    end
+  end

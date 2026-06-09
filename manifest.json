@@ -1,0 +1,10 @@
+{
+	"id": "obsidian-mermaid-inspector",
+	"name": "Mermaid Inspector",
+	"description": "Custom view for .mmd files with interactive subgraph inspection. Subgraphs render as collapsed blocks; click to dive in with higher levels fading to background. Liquid, animated navigation.",
+	"author": "Ixniyevonn",
+	"authorUrl": "",
+	"version": "0.1.0",
+	"minAppVersion": "0.15.0",
+	"isDesktopOnly": false
+}

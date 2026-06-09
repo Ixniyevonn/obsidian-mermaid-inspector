@@ -1,0 +1,30 @@
+flowchart TD
+  CEO[CEO] --> Eng
+  CEO --> Product
+  CEO --> GTM
+
+  subgraph Eng ["Engineering"]
+    Eng --> Platform
+    Eng --> ProductEng
+
+    subgraph Platform
+      P1[Infra] --> P2[CI/CD]
+      P2 --> P3[Observability]
+    end
+
+    subgraph ProductEng
+      PE1[Frontend] --> PE2[Backend]
+      PE2 --> PE3[Mobile]
+    end
+  end
+
+  subgraph Product ["Product"]
+    Product --> Design
+    Product --> PMs
+  end
+
+  subgraph GTM ["Go To Market"]
+    GTM --> Marketing
+    GTM --> Sales
+    Sales --> CS[Customer Success]
+  end
