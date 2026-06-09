@@ -1,10 +1,5 @@
 import dagre from "dagre";
-import type {
-	GraphModel,
-	LayoutEdge,
-	LayoutNode,
-	LayoutResult,
-} from "./types";
+import type { GraphModel, LayoutEdge, LayoutNode, LayoutResult } from "./types";
 import { measureCluster, measureNode } from "./utils/measure";
 
 /**
@@ -18,10 +13,7 @@ import { measureCluster, measureNode } from "./utils/measure";
  * node itself grows to contain them.
  */
 
-function getDirectOwnerScope(
-	nodeId: string,
-	model: GraphModel,
-): string | null {
+function getDirectOwnerScope(nodeId: string, model: GraphModel): string | null {
 	for (const sc of Object.values(model.scopes)) {
 		if (sc.nodeIds.includes(nodeId)) return sc.id;
 	}
@@ -179,8 +171,11 @@ export function computeLayout(
 			const sid = from.slice(8);
 			if (expanded.has(sid)) {
 				const sc = model.scopes[sid];
-				const first = sc?.nodeIds?.find((nid) => visibleIds.has(nid)) ||
-				              sc?.subscopeIds?.map((c) => `cluster:${c}`).find((c) => visibleIds.has(c));
+				const first =
+					sc?.nodeIds?.find((nid) => visibleIds.has(nid)) ||
+					sc?.subscopeIds
+						?.map((c) => `cluster:${c}`)
+						.find((c) => visibleIds.has(c));
 				if (first) from = first;
 			}
 		}
@@ -188,8 +183,11 @@ export function computeLayout(
 			const sid = to.slice(8);
 			if (expanded.has(sid)) {
 				const sc = model.scopes[sid];
-				const first = sc?.nodeIds?.find((nid) => visibleIds.has(nid)) ||
-				              sc?.subscopeIds?.map((c) => `cluster:${c}`).find((c) => visibleIds.has(c));
+				const first =
+					sc?.nodeIds?.find((nid) => visibleIds.has(nid)) ||
+					sc?.subscopeIds
+						?.map((c) => `cluster:${c}`)
+						.find((c) => visibleIds.has(c));
 				if (first) to = first;
 			}
 		}
@@ -244,12 +242,16 @@ export function computeLayout(
 	for (const ent of entities) {
 		const dn = g.node(ent.id);
 		if (!dn) continue;
-		const w = (typeof dn.width === 'number' && isFinite(dn.width)) ? dn.width : 80;
-		const h = (typeof dn.height === 'number' && isFinite(dn.height)) ? dn.height : 28;
+		const w =
+			typeof dn.width === "number" && Number.isFinite(dn.width) ? dn.width : 80;
+		const h =
+			typeof dn.height === "number" && Number.isFinite(dn.height)
+				? dn.height
+				: 28;
 		const rawX = dn.x;
 		const rawY = dn.y;
-		const cx = (typeof rawX === 'number' && isFinite(rawX)) ? rawX : 0;
-		const cy = (typeof rawY === 'number' && isFinite(rawY)) ? rawY : 0;
+		const cx = typeof rawX === "number" && Number.isFinite(rawX) ? rawX : 0;
+		const cy = typeof rawY === "number" && Number.isFinite(rawY) ? rawY : 0;
 		let ln: LayoutNode = {
 			id: ent.id,
 			label: ent.label,
@@ -288,22 +290,24 @@ export function computeLayout(
 	// edges (use dagre points if present, else centers)
 	const edges: LayoutEdge[] = [];
 	for (const pe of projEdges) {
-		const de: any = g.edge(pe.from, pe.to);
+		// dagre's GraphEdge type is loose; use a narrow structural type instead of any
+		const de = g.edge(pe.from, pe.to) as
+			| { points?: Array<{ x?: number; y?: number }> }
+			| undefined;
 		let points: Array<{ x: number; y: number }> = [];
 		if (de && Array.isArray(de.points) && de.points.length >= 2) {
-			points = de.points
-				.map((p: any) => ({
-					x: (typeof p.x === 'number' && isFinite(p.x)) ? p.x : 0,
-					y: (typeof p.y === 'number' && isFinite(p.y)) ? p.y : 0,
-				}));
+			points = de.points.map((p) => ({
+				x: typeof p.x === "number" && Number.isFinite(p.x) ? p.x : 0,
+				y: typeof p.y === "number" && Number.isFinite(p.y) ? p.y : 0,
+			}));
 		} else {
 			const a = nodes[pe.from];
 			const b = nodes[pe.to];
 			if (a && b) {
-				const ax = (typeof a.x === 'number' && isFinite(a.x)) ? a.x : 0;
-				const ay = (typeof a.y === 'number' && isFinite(a.y)) ? a.y : 0;
-				const bx = (typeof b.x === 'number' && isFinite(b.x)) ? b.x : 0;
-				const by = (typeof b.y === 'number' && isFinite(b.y)) ? b.y : 0;
+				const ax = typeof a.x === "number" && Number.isFinite(a.x) ? a.x : 0;
+				const ay = typeof a.y === "number" && Number.isFinite(a.y) ? a.y : 0;
+				const bx = typeof b.x === "number" && Number.isFinite(b.x) ? b.x : 0;
+				const by = typeof b.y === "number" && Number.isFinite(b.y) ? b.y : 0;
 				points = [
 					{ x: ax + a.width / 2, y: ay + a.height / 2 },
 					{ x: bx + b.width / 2, y: by + b.height / 2 },

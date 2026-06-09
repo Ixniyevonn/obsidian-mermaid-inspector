@@ -17,7 +17,9 @@ const SUBGRAPH_START_RE =
 // Returns the bare id and an optional label from inside the shape.
 function parseNodeRef(token: string): { id: string; label?: string } {
 	const t = token.trim();
-	const m = t.match(/^([A-Za-z0-9_]+)(?:\s*(?:\[([^\]]*)\]|\(([^\)]*)\)|\{([^}]*)\}))?$/);
+	const m = t.match(
+		/^([A-Za-z0-9_]+)(?:\s*(?:\[([^\]]*)\]|\(([^)]*)\)|\{([^}]*)\}))?$/,
+	);
 	if (m) {
 		const id = m[1];
 		const lab = cleanLabel(m[2] || m[3] || m[4]);
@@ -38,14 +40,10 @@ function cleanLabel(raw: string | undefined | null): string {
 	return raw.trim().replace(/^["']|["']$/g, "");
 }
 
-function ensureNode(
-	nodes: Record<string, MNode>,
-	id: string,
-	label?: string,
-) {
+function ensureNode(nodes: Record<string, MNode>, id: string, label?: string) {
 	if (!nodes[id]) {
-		nodes[id] = { id, label: label && label.length ? label : id };
-	} else if (label && label.length && nodes[id].label === id) {
+		nodes[id] = { id, label: label?.length ? label : id };
+	} else if (label?.length && nodes[id].label === id) {
 		nodes[id].label = label;
 	}
 }
@@ -60,14 +58,14 @@ export function parseFlowchart(src: string): GraphModel {
 
 	const scopeStack: string[] = []; // scope ids, top is current
 
-	let sawFlow = false;
+	let _sawFlow = false;
 
-	for (let raw of lines) {
-		let line = raw.trim();
+	for (const raw of lines) {
+		const line = raw.trim();
 		if (!line) continue;
 		if (line.startsWith("%%")) continue;
 		if (line.startsWith("flowchart") || line.startsWith("graph")) {
-			sawFlow = true;
+			_sawFlow = true;
 			continue;
 		}
 		// direction line or other headers we ignore for this milestone
@@ -78,7 +76,9 @@ export function parseFlowchart(src: string): GraphModel {
 			const id = sg[1];
 			let label = cleanLabel(sg[2] || sg[3] || sg[4]);
 			if (!label) label = id;
-			const parentId = scopeStack.length ? scopeStack[scopeStack.length - 1] : null;
+			const parentId = scopeStack.length
+				? scopeStack[scopeStack.length - 1]
+				: null;
 
 			const scope: Scope = {
 				id,
@@ -115,19 +115,25 @@ export function parseFlowchart(src: string): GraphModel {
 			const t = parseNodeRef(right);
 
 			// Do not create real nodes for scope ids (they are clusters)
-			const createdF = !scopes[f.id] && !nodes[f.id];
-			const createdT = !scopes[t.id] && !nodes[t.id];
+			const _createdF = !scopes[f.id] && !nodes[f.id];
+			const _createdT = !scopes[t.id] && !nodes[t.id];
 			if (!scopes[f.id]) ensureNode(nodes, f.id, f.label);
 			if (!scopes[t.id]) ensureNode(nodes, t.id, t.label);
 
 			// If we are inside a subgraph, newly seen nodes via edges belong to it
-			const curScope = scopeStack.length ? scopeStack[scopeStack.length - 1] : null;
+			const curScope = scopeStack.length
+				? scopeStack[scopeStack.length - 1]
+				: null;
 			if (curScope) {
-				if (!scopes[f.id] && !scopes[curScope].nodeIds.includes(f.id)) scopes[curScope].nodeIds.push(f.id);
-				if (!scopes[t.id] && !scopes[curScope].nodeIds.includes(t.id)) scopes[curScope].nodeIds.push(t.id);
+				if (!scopes[f.id] && !scopes[curScope].nodeIds.includes(f.id))
+					scopes[curScope].nodeIds.push(f.id);
+				if (!scopes[t.id] && !scopes[curScope].nodeIds.includes(t.id))
+					scopes[curScope].nodeIds.push(t.id);
 			} else {
-				if (!scopes[f.id] && !looseNodeIds.includes(f.id)) looseNodeIds.push(f.id);
-				if (!scopes[t.id] && !looseNodeIds.includes(t.id)) looseNodeIds.push(t.id);
+				if (!scopes[f.id] && !looseNodeIds.includes(f.id))
+					looseNodeIds.push(f.id);
+				if (!scopes[t.id] && !looseNodeIds.includes(t.id))
+					looseNodeIds.push(t.id);
 			}
 
 			edges.push({ from: f.id, to: t.id, label });
@@ -135,7 +141,9 @@ export function parseFlowchart(src: string): GraphModel {
 		}
 
 		// standalone node decl (or just id) at root or inside subgraph
-		const nm = line.match(/^([A-Za-z0-9_]+)\s*(?:\[([^\]]*)\]|\(([^\)]*)\)|\{([^}]*)\})?\s*$/);
+		const nm = line.match(
+			/^([A-Za-z0-9_]+)\s*(?:\[([^\]]*)\]|\(([^)]*)\)|\{([^}]*)\})?\s*$/,
+		);
 		if (nm) {
 			const id = nm[1];
 			const label = cleanLabel(nm[2] || nm[3] || nm[4]) || id;
@@ -146,14 +154,15 @@ export function parseFlowchart(src: string): GraphModel {
 			} else {
 				ensureNode(nodes, id, label);
 
-				const cur = scopeStack.length ? scopeStack[scopeStack.length - 1] : null;
+				const cur = scopeStack.length
+					? scopeStack[scopeStack.length - 1]
+					: null;
 				if (cur) {
 					if (!scopes[cur].nodeIds.includes(id)) scopes[cur].nodeIds.push(id);
 				} else {
 					if (!looseNodeIds.includes(id)) looseNodeIds.push(id);
 				}
 			}
-			continue;
 		}
 
 		// ignore other lines (styles, classDef, etc) for milestone
@@ -164,7 +173,7 @@ export function parseFlowchart(src: string): GraphModel {
 	// Ensure all scope member nodes exist
 	for (const sc of Object.values(scopes)) {
 		for (const nid of sc.nodeIds) ensureNode(nodes, nid);
-		for (const sid of sc.subscopeIds) {
+		for (const _sid of sc.subscopeIds) {
 			// scopes already created
 		}
 	}

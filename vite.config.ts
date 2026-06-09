@@ -1,9 +1,13 @@
-import { svelte, vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import builtins from "builtin-modules";
 import fs from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "url";
+import { fileURLToPath } from "node:url";
+import { pathToFileURL } from "node:url";
 import { PluginOption, defineConfig } from "vite";
+
+// ESM-compatible __dirname (vite config is loaded as ESM)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const setOutDir = (mode: string) => {
   switch (mode) {
@@ -16,13 +20,21 @@ const setOutDir = (mode: string) => {
 
 export default defineConfig(({ mode }) => {
   const isDev = mode === "development";
+  const isVitest = !!process.env.VITEST || mode === "test";
   const vaultPluginDir = "./test-vault/.obsidian/plugins/obsidian-mermaid-inspector";
 
-  const plugins: PluginOption[] = [
-    svelte({ preprocess: vitePreprocess() }) as PluginOption,
-  ];
+  // When running under Vitest, return a minimal config.
+  // This prevents the lib build config (rollupOptions, sourcemapBaseUrl, closeBundle copy hook)
+  // from executing and causing pathToFileURL / executor errors during test discovery and run.
+  // Our tests only exercise pure modules (parser, layout) that need no special vite setup.
+  if (isVitest) {
+    return {};
+  }
 
-  if (!isDev) {
+  const plugins: PluginOption[] = [];
+
+  // Only run the post-build copy in real production builds, never during tests or dev
+  if (!isDev && !isVitest) {
     plugins.push({
       name: "copy-to-vault",
       closeBundle() {
@@ -41,6 +53,18 @@ export default defineConfig(({ mode }) => {
     });
   }
 
+  // Only provide sourcemapBaseUrl when it makes sense (prevents File URL errors under vitest/vite-node)
+  const useSourcemapBase = (mode === "development" || mode === "production") && !isVitest;
+
+  // Always compute an absolute path for the base (path.join ensures correct separators on Windows)
+  const sourcemapBaseDir = path.join(
+    __dirname,
+    "test-vault",
+    ".obsidian",
+    "plugins",
+    "obsidian-mermaid-inspector",
+  );
+
   return {
     plugins,
     build: {
@@ -52,9 +76,11 @@ export default defineConfig(({ mode }) => {
         output: {
           entryFileNames: "main.js",
           assetFileNames: "styles.css",
-          sourcemapBaseUrl: pathToFileURL(
-            `${__dirname}/test-vault/.obsidian/plugins/obsidian-mermaid-inspector/`,
-          ).toString(),
+          ...(useSourcemapBase
+            ? {
+                sourcemapBaseUrl: pathToFileURL(sourcemapBaseDir).toString(),
+              }
+            : {}),
         },
         external: [
           "obsidian",

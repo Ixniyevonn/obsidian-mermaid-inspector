@@ -1,4 +1,5 @@
-import { ItemView, Plugin, WorkspaceLeaf } from "obsidian";
+import { Plugin } from "obsidian";
+import "../styles.css";
 import { VIEW_TYPE, MermaidView } from "./views/MermaidView";
 
 export default class MermaidInspectorPlugin extends Plugin {

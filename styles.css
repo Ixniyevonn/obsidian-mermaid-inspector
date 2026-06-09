@@ -1,0 +1,95 @@
+/* Mermaid Inspector - vanilla styles (ported from component, no Svelte scoping) */
+
+.mi-root {
+	width: 100%;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	background: var(--background-primary);
+	overflow: hidden;
+}
+
+.mi-header {
+	padding: 8px 14px 4px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
+}
+
+.mi-title {
+	font-weight: 600;
+	font-size: 13px;
+	color: var(--text-normal);
+}
+
+.mi-sub {
+	font-size: 11px;
+	color: var(--text-muted);
+	margin-top: 1px;
+}
+
+.mi-canvas {
+	flex: 1;
+	position: relative;
+	overflow: auto;
+	background: var(--background-primary);
+}
+
+.mi-svg {
+	display: block;
+	width: 100% !important;
+	height: 100% !important;
+	min-width: 0 !important;
+	min-height: 0 !important;
+}
+
+/* Make sure the plugin view takes the full available space in Obsidian */
+.view-content {
+	padding: 0 !important;
+}
+
+/* Force full size (overrides any previous min constraints) */
+.mi-svg {
+	min-width: 0 !important;
+	min-height: 0 !important;
+	width: 100% !important;
+	height: 100% !important;
+}
+
+.mi-footer {
+	padding: 6px 12px;
+	font-size: 11px;
+	color: var(--text-muted);
+	border-top: 1px solid var(--background-modifier-border);
+	flex-shrink: 0;
+	background: var(--background-secondary);
+}
+
+.cluster-hint {
+	padding: 1px 5px;
+	border: 1px dashed var(--interactive-accent);
+	border-radius: 3px;
+	background: var(--background-secondary);
+}
+
+/* SVG element styles */
+.cluster-container {
+	cursor: pointer;
+}
+.cluster-container rect {
+	transition:
+		x 120ms linear,
+		y 120ms linear,
+		width 120ms linear,
+		height 120ms linear;
+}
+
+.cluster-collapsed {
+	cursor: pointer;
+}
+
+.node rect {
+	transition: fill 80ms ease;
+}
+.node:hover rect {
+	fill: var(--background-modifier-hover);
+}

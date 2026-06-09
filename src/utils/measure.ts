@@ -18,10 +18,10 @@ export interface Size {
 }
 
 const NODE_FONT = "14px sans-serif";
-const NODE_BOLD = "bold 14px sans-serif";
+const _NODE_BOLD = "bold 14px sans-serif";
 const CLUSTER_FONT = "bold 13px sans-serif";
 const PADDING_X = 20;
-const PADDING_Y = 12;
+const _PADDING_Y = 12;
 const MIN_NODE_W = 78;
 const MIN_NODE_H = 30;
 const MIN_CLUSTER_W = 86;
@@ -31,7 +31,10 @@ export function measureNode(label: string): Size {
 	const c = ensureCtx();
 	if (!c) {
 		// SSR / terminal fallback (rough but stable for layout)
-		const approx = Math.max(MIN_NODE_W, (label?.length ?? 4) * 7.5 + PADDING_X * 2);
+		const approx = Math.max(
+			MIN_NODE_W,
+			(label?.length ?? 4) * 7.5 + PADDING_X * 2,
+		);
 		return { width: approx, height: MIN_NODE_H };
 	}
 	c.font = NODE_FONT;
@@ -44,7 +47,10 @@ export function measureNode(label: string): Size {
 export function measureCluster(label: string): Size {
 	const c = ensureCtx();
 	if (!c) {
-		const approx = Math.max(MIN_CLUSTER_W, (label?.length ?? 6) * 8 + PADDING_X * 2 + 10);
+		const approx = Math.max(
+			MIN_CLUSTER_W,
+			(label?.length ?? 6) * 8 + PADDING_X * 2 + 10,
+		);
 		return { width: approx, height: MIN_CLUSTER_H };
 	}
 	c.font = CLUSTER_FONT;
