@@ -9,6 +9,9 @@ const config = {
         if (warning.code === 'css_unused_selector') {
             return;
         }
+        if (warning.code && warning.code.startsWith('a11y_')) {
+            return;
+        }
         handler(warning);
     },
     kit: {},

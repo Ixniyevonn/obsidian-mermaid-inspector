@@ -8,12 +8,14 @@
     "dev": "vite build --mode development --watch",
     "build": "vite build --mode production",
     "check": "svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "format": "biome format --write ./src",
     "lint": "biome lint --apply-unsafe ./src"
   },
   "dependencies": {
-    "mermaid": "^11.4.1",
-    "svelte-pan-zoom": "^0.0.13"
+    "@types/dagre": "^0.7.54",
+    "dagre": "^0.8.5"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.8",

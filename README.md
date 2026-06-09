@@ -19,6 +19,7 @@ Subgraphs render as distinct collapsed blocks by default. Click to expand a bloc
 - All layout changes are accompanied by smooth position and path tweens so elements visibly move out of the way.
 - Focus + context with progressive fade on non-focused regions.
 - Recursive scope rules for nested subgraphs and state composites.
+- **Strict subgraph boundary rule**: In source files, no edge may ever directly connect a node outside a subgraph to a node inside that subgraph (or vice-versa). All cross-boundary connections must be made *to the subgraph identifier itself*. If an author wants visible entry/exit points they must manually introduce explicit input/output nodes *inside* the subgraph and wire to those. The inspector never automates, rewrites, or "fixes" direct cross-boundary node edges — such diagrams are simply invalid for this tool. (This rule is enforced by authoring correct sources; the parser and layout do not synthesize ports for malformed crossings.)
 - Explicit in/out ports on collapsed blocks; generators keep wiring level-correct.
 
 ## Implementation Architecture
@@ -93,42 +94,35 @@ Emits standalone diagram for exactly that scope:
 Both generators are memoizable by (model hash + focusPath). Output is validated by rendering in mermaid.live.
 
 ### Animated Re-layout Renderer (core)
-On focus/expand change:
 
-1. Generators emit the source for the current focus state (all scopes collapsed to minimal clusters+ports except focusPath scopes, which are expanded/inlined).
+**Hard constraint:** The `mermaid` npm package must **never** be used for layout or rendering.
 
-2. `mermaid.render(currentSource)` produces SVG with correct non-overlapping layout.
+Mermaid syntax is accepted **only** as input file format. The system parses it into an internal model and then owns layout + rendering completely.
 
-3. Extract per-element positions (node `g.node`, cluster `g.cluster`, edge `g.edgePath`): id + bbox/transform + path `d`.
+Flow for flowcharts:
 
-4. On next state change, repeat render, then tween:
-   - Matching elements animate from previous to new position (transform delta or attribute interpolation).
-   - Cluster rects grow/shrink as part of the tween.
-   - Edge paths morph.
-   - New elements fade in, disappearing ones fade out.
-   - Transition duration 200-400 ms.
+1. Parser converts Mermaid flowchart source into model:
+   - nodes (id, label, shape)
+   - edges (source, target)
+   - scopes/subgraphs (nesting, children, expanded flag)
 
-**Mermaid SVG notes**
-Clusters (`g.cluster` containing `rect.cluster-rect` + label) are post-layout overlays. Nodes and edges are siblings at the root `<g>` level. Position extraction and per-element tweening use stable ids or added data attributes.
+2. Layout is computed by **dagre** directly on the current model state.
 
-**Tween implementation**
-- Record old positions before replacing SVG (or keep previous SVG off-DOM for reference).
-- After mounting new SVG, initialize matching elements at old coordinates via `transform`, then transition to final layout.
-- Path `d` interpolation for edges (linear or simple cubic point lerp).
-- Cache by (source hash, focusPath). Re-render only affected scopes.
+3. Renderer (Svelte component) draws everything from the model using its own SVG elements. No Mermaid SVG is ever kept or animated.
+
+4. On expand/collapse:
+   - Update model (toggle expanded scope, show/hide children)
+   - Re-run dagre layout
+   - Tween node positions, cluster bounds and edge paths in the model
+   - Svelte reactivity updates the visual elements
+
+All control and animation lives in the app-owned model. This is mandatory for reliable smooth movement.
 
 ### Svelte 5 Integration (runes)
-- View component owns:
-  - `let focusPath = $state<string[]>([]);`
-  - `let inlineExpanded = $state<Set<string>>(new Set());`
-  - Derived `breadcrumb = $derived(focusPath.map(id => model.scopes.get(id)));`
-- On content change or focusPath change (debounced 80ms): run parser → generators → compose → mount/replace SVG in viewport div.
-- Breadcrumb: simple horizontal list of buttons; click splices the array.
-- Delegated click on SVG: `e.target.closest('g.cluster')` → read `data-scope` or derive from id → update focusPath (push if not present, or set as new leaf).
-- Right-click on cluster: toggle inlineExpanded, re-compose without touching focusPath (no fade, collapse only on inner background click).
-- Esc / background click (outside any cluster): pop focusPath.
-- Pan/zoom: wrapper div with `overflow:hidden`; inner SVG wrapped in `<g class="viewport">` whose `transform` matrix is mutated by wheel (scale around cursor) + pointer drag. Or drop in `svg-pan-zoom` if already present in your viewpoint template.
-- Theme: listen `app.workspace.on('css-change')`, re-configure mermaid themeVariables from Obsidian vars, re-compose.
+- The view owns the reactive model (`nodes`, `edges`, `scopes` with current positions and expanded state).
+- On focus change: update model → (optionally) request new layout snapshot from Mermaid → tween model coordinates → Svelte renders updated SVG elements.
+- All clicks, fades, and state live in the Svelte component and act directly on the model.
+- The rendered SVG is always produced by the app from the model, never by keeping a Mermaid-generated tree alive after snapshot extraction.
 
 ### Obsidian View Glue
 Mirror your `obsidian-viewpoint` example exactly:
