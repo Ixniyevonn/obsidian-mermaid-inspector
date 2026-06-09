@@ -15,24 +15,25 @@ Subgraphs render as distinct collapsed blocks by default. Click to expand a bloc
 - Boundary ports (`ScopeId__in` / `ScopeId__out`) for clean scope crossing; external edges terminate on containers
 
 ## Design Principles
-- **Compositor, not mutator**: never re-run full Mermaid layout on expand. Shell provides stable coordinates; interiors are inserted locally with transform + cluster-frame animation.
-- **Focus + context**: current scope at full detail/opacity; ancestors and siblings fade progressively with distance from focus.
-- **Recursive by construction**: every scope (including nested) follows identical collapsed/expanded rules.
-- **Ports as first-class**: collapsed blocks expose explicit in/out ports; wiring is level-correct in every render pass.
+- Expanding a scope always produces a correct non-overlapping layout: Mermaid re-renders from updated source so surrounding nodes and edges move to accommodate the larger cluster. Incoming/outgoing arrows never overlap expanded blocks. The collapsed render is only the initial position template.
+- All layout changes are accompanied by smooth position and path tweens so elements visibly move out of the way.
+- Focus + context with progressive fade on non-focused regions.
+- Recursive scope rules for nested subgraphs and state composites.
+- Explicit in/out ports on collapsed blocks; generators keep wiring level-correct.
 
 ## Implementation Architecture
-
-### Why previous single-render + DOM approaches fail
-Mermaid layout (dagre) sizes every cluster rect to its *expanded* descendants and positions every node/edge in one global pass. Post-render `display:none` / `visibility` / removal of inner nodes leaves either oversized empty clusters or broken edge paths. You cannot obtain a true collapsed shell, independent interior layouts, or controlled in-place growth animation without violating the "no full relayout" rule. The compositor model solves this by construction.
 
 ### Pipeline (strict order)
 ```
 .mmd source
   → Parser (stack-based scope tree + boundary edges)
   → Model (Scope[], Node[], Edge[] with scope membership)
-  → Generators (shellCode + interiorCode per scope in focusPath)
-  → Multi-render (mermaid.render for shell + each interior)
-  → Compositor (DOMParser + locate cluster + insert transformed interior + tween rect + fade)
+  → Generators (produce full Mermaid source for current focus state:
+       all scopes collapsed except those on focusPath, which are expanded/inlined)
+  → Render (mermaid.render → correct layout for current state)
+  → Position map (extract node/cluster/edge positions from SVG)
+  → On focus change: new source → new render → tween animation
+       (every element moves from old pos to new pos + path morph)
   → Svelte viewport (SVG mount + delegated clicks + pan/zoom + runes state)
 ```
 
@@ -89,88 +90,32 @@ Emits standalone diagram for exactly that scope:
 - Internal edges unchanged; edges that originally left the scope now attach to the scope's out-port (or in-port on the other side).
 - Subgraph direction inherited or explicit.
 
-Both generators are memoizable by (model hash + focusPath slice). Paste their output into mermaid.live during development to validate layout before wiring the compositor.
+Both generators are memoizable by (model hash + focusPath). Output is validated by rendering in mermaid.live.
 
-### Compositor (core of custom rendering)
-```ts
-async function compose(
-  shellCode: string,
-  interiors: Map<string, string>,  // scopeId → interiorCode
-  focusPath: string[]
-): Promise<SVGSVGElement> {
-  const shellSvgStr = (await mermaid.render('shell', shellCode)).svg;
-  const doc = new DOMParser().parseFromString(shellSvgStr, 'image/svg+xml');
-  const svg = doc.documentElement as unknown as SVGSVGElement;
+### Animated Re-layout Renderer (core)
+On focus/expand change:
 
-  // 1. locate every cluster once (build id → g map)
-  const clusters = new Map<string, SVGGElement>();
-  svg.querySelectorAll('g.cluster').forEach(g => {
-    const id = g.id; // e.g. flowchart-0-cluster-Eng or similar
-    const scopeId = extractScopeIdFromClusterId(id); // tolerant regex or label-text fallback
-    if (scopeId) clusters.set(scopeId, g as SVGGElement);
-  });
+1. Generators emit the source for the current focus state (all scopes collapsed to minimal clusters+ports except focusPath scopes, which are expanded/inlined).
 
-  // 2. for each scope in focusPath (deepest → shallowest for z-order)
-  for (const scopeId of [...focusPath].reverse()) {
-    const cluster = clusters.get(scopeId);
-    if (!cluster) continue;
+2. `mermaid.render(currentSource)` produces SVG with correct non-overlapping layout.
 
-    const interiorCode = interiors.get(scopeId)!;
-    const intRes = await mermaid.render(`int-${scopeId}`, interiorCode);
-    const intDoc = new DOMParser().parseFromString(intRes.svg, 'image/svg+xml');
-    const intContent = intDoc.querySelector('svg > g')!; // the real diagram group
+3. Extract per-element positions (node `g.node`, cluster `g.cluster`, edge `g.edgePath`): id + bbox/transform + path `d`.
 
-    // compute transform so interior bbox maps inside cluster rect + padding
-    const clusterRect = cluster.querySelector('rect.cluster-rect') as SVGRectElement;
-    const cBox = clusterRect.getBBox();
-    const iBox = (intContent as SVGGElement).getBBox();
+4. On next state change, repeat render, then tween:
+   - Matching elements animate from previous to new position (transform delta or attribute interpolation).
+   - Cluster rects grow/shrink as part of the tween.
+   - Edge paths morph.
+   - New elements fade in, disappearing ones fade out.
+   - Transition duration 200-400 ms.
 
-    const pad = 12;
-    const scale = Math.min(
-      (cBox.width - 2*pad) / iBox.width,
-      (cBox.height - 2*pad) / iBox.height
-    ) || 1; // or policy: grow cluster instead of fit
-    const tx = cBox.x + pad;
-    const ty = cBox.y + pad;
+**Mermaid SVG notes**
+Clusters (`g.cluster` containing `rect.cluster-rect` + label) are post-layout overlays. Nodes and edges are siblings at the root `<g>` level. Position extraction and per-element tweening use stable ids or added data attributes.
 
-    const wrapper = doc.createElementNS('http://www.w3.org/2000/svg', 'g');
-    wrapper.setAttribute('class', 'mermaid-interior');
-    wrapper.setAttribute('data-scope', scopeId);
-    wrapper.setAttribute('transform', `translate(${tx} ${ty}) scale(${scale})`);
-    wrapper.append(...intContent.childNodes); // move nodes/edges
-
-    cluster.appendChild(wrapper);
-
-    // optional: grow cluster frame to natural interior size
-    if (/* grow policy */) {
-      const targetW = iBox.width * scale + 2*pad;
-      const targetH = iBox.height * scale + 2*pad;
-      tweenRect(clusterRect, {width: targetW, height: targetH}); // rAF
-    }
-  }
-
-  // 3. progressive fade
-  applyFades(svg, focusPath, clusters);
-
-  // 4. attach delegated click handlers (or return and let Svelte do it)
-  svg.addEventListener('click', handleClusterClick);
-
-  return svg;
-}
-```
-
-**Mermaid SVG structure notes (empirical)**
-- `<svg><g>` (main)
-  - nodes: `<g class="node" id="...">` (rect/circle/foreignObject + text)
-  - edges: `<g class="edgePath">` (path + marker)
-  - clusters: `<g class="cluster" id="...-cluster-${scopeId}">` containing `<rect class="cluster-rect">` + label text/foreignObject. **Nodes and edges of a subgraph are NOT DOM children of its cluster g**; they are siblings. Cluster rect is a post-layout bounding overlay. This is why insertion + local transform works; we never rely on cluster being a container.
-
-**Animation**
-- Cluster growth: rAF tween on `width`/`height`/`x`/`y` of the rect (and vertical label adjustment).
-- Interior insert: CSS transition or Svelte transition on the wrapper g (opacity 0→1 + scale(0.9→1)).
-- Fade changes: direct style.opacity or class toggle; re-compute on every focus change.
-
-Cache: key renders by content hash; skip re-render if code unchanged.
+**Tween implementation**
+- Record old positions before replacing SVG (or keep previous SVG off-DOM for reference).
+- After mounting new SVG, initialize matching elements at old coordinates via `transform`, then transition to final layout.
+- Path `d` interpolation for edges (linear or simple cubic point lerp).
+- Cache by (source hash, focusPath). Re-render only affected scopes.
 
 ### Svelte 5 Integration (runes)
 - View component owns:
@@ -192,32 +137,18 @@ Mirror your `obsidian-viewpoint` example exactly:
 - Load file content → feed to model → first compose with empty focusPath (all collapsed).
 - Save is no-op or delegates to source mode leaf (inspector is primarily read/visual navigation).
 
-### Phased Implementation Order (do not deviate)
-1. Parser + DiagramModel (pure TS, vitest or plain node tests against all demo/*.mmd). 100% pass required before step 2.
-2. Generators (shell + interior). For every test case, generate → paste to mermaid.live → visually confirm small clusters + correct ports + boundary edges. Fix generator until perfect.
-3. Compositor prototype (plain HTML page or isolated Svelte route). Hardcoded focusPath, one level, static insert, no animation. Verify in browser devtools that interior appears inside correct cluster rect with right transform.
-4. Add animation, progressive fade, multi-level nesting, cache.
-5. Svelte runes state + event wiring + breadcrumb + inline mode.
-6. Pan/zoom viewport + Obsidian registration + theme sync + error banner.
-7. Polish (port styling, stateDiagram-v2 edge cases, perf on 4+ level deep, mobile tap handling).
-
-Only after step 3 do you touch Obsidian plugin boilerplate or full UI.
+### Phased Implementation Order
+1. Parser + DiagramModel (pure, tested against all demo/*.mmd).
+2. Generators (produce correct collapsed vs expanded-in-focusPath source). Validate output in mermaid.live.
+3. Animated re-layout prototype (standalone): collapsed render → click expands via new source + position tween. No overlaps, smooth movement.
+4. Add progressive fade, multi-level focusPath, caching, inline expand mode.
+5. Svelte 5 integration (runes for focusPath, delegated events, breadcrumb).
+6. Pan/zoom viewport + Obsidian custom view registration + theme sync.
+7. Ports, stateDiagram-v2 specifics, error handling, performance.
 
 ### Risks & Mitigations
-- Mermaid cluster id format drift across Obsidian versions: make `extractScopeIdFromClusterId` try `id.match(/-cluster-(.+)$/)?.[1]`, then fallback to scanning label text content against known scope titles. Log during dev.
-- Large/deep diagrams: generators + renders are O(n) per focus change; memoize by hash, only re-render changed interiors.
-- Overlap when growing clusters: by design under progressive fade; user can pan/zoom. Future option: "compact" vs "grow" policy toggle.
-- Cross-boundary edges in original source: parser must detect and reroute; otherwise interiors will show dangling edges.
-- stateDiagram-v2 composites: treat `state X { ... }` identically to subgraph; map `state` syntax in generator.
-
-## Installation (development)
-Same as before (bun). The `test-vault/demo/` files remain the canonical test corpus.
-
-## Demo Vault
-Unchanged: `Getting-Started.mmd`, `demo/Architecture.mmd`, `demo/StateMachine.mmd`, `demo/DeepNesting.mmd`, `demo/OrgChart.mmd`.
-
-The implementation follows the compositor pipeline above. The previous "removed implementation" was discarded because it relied on the incompatible single-render model.
-
-## References (internal)
-- Your `obsidian-viewpoint` example for exact Svelte 5 + Vite CJS layout, view registration pattern, and CSS var usage.
-- Mermaid source (for cluster class names and render pipeline) — inspect once in step 3.
+- Mermaid cluster id naming may change across versions: `extractScopeIdFromClusterId` must be tolerant (regex on id + fallback to label text match).
+- Re-render cost grows with diagram size and focus depth: generators and renders are memoized by content hash; only changed scopes trigger re-render.
+- Viewport must support pan and zoom so the diagram remains usable after layout shifts.
+- Parser must correctly classify boundary-crossing edges so generators can attach them to ports.
+- stateDiagram-v2 composites use identical scope model and generator rules as flowchart subgraphs.
