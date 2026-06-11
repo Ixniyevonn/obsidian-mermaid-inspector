@@ -169,17 +169,20 @@
 
       const hasAnchor = toggledId && anchorMx != null && anchorMy != null;
 
-      // Pin the toggled cluster's center to where the user clicked.
-      // After mounting the new SVG, adjust the pan so that the cluster's new
-      // world-space center maps to the same viewport position (anchorMx/Y) as before.
-      // Formula: panX = anchorMx - newCx * zoom  (from: panX + wx*zoom = viewportX)
+      // Pin the toggled cluster's center to the anchor screen position.
+      // After mounting the new SVG, measure where the cluster actually is on
+      // screen (getBoundingClientRect accounts for all SVG + CSS transforms),
+      // then shift the pan by the difference so it lands at anchorMx/Y.
+      // Using a delta avoids any local-vs-absolute coordinate system confusion.
       if (hasAnchor && canvasRef && toggledId) {
-        const newR = newPositions.clusters[toggledId];
-        if (newR) {
-          const { zoom } = canvasRef.getViewport();
-          const newCx = newR.x + newR.width / 2;
-          const newCy = newR.y + newR.height / 2;
-          canvasRef.setPan(anchorMx! - newCx * zoom, anchorMy! - newCy * zoom);
+        const newClusterG = newTagged.querySelector(`[data-cluster-id="${toggledId}"]`) as SVGGElement | null;
+        const containerBCR = canvasRef.getContainerRect();
+        if (newClusterG && containerBCR) {
+          const bcr = newClusterG.getBoundingClientRect();
+          const currentCx = (bcr.left + bcr.right) / 2 - containerBCR.left;
+          const currentCy = (bcr.top + bcr.bottom) / 2 - containerBCR.top;
+          const { panX, panY } = canvasRef.getViewport();
+          canvasRef.setPan(panX + (anchorMx! - currentCx), panY + (anchorMy! - currentCy));
         }
       }
 
