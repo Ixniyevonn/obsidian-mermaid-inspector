@@ -1,14 +1,18 @@
 import { Plugin } from "obsidian";
 import "../styles.css";
-import { VIEW_TYPE, MermaidView } from "./views/MermaidView";
+import { InspectorView, VIEW_TYPE } from "./views/InspectorView";
 
 export default class MermaidInspectorPlugin extends Plugin {
 	async onload() {
-		this.registerView(VIEW_TYPE, (leaf) => new MermaidView(leaf));
+		this.registerView(VIEW_TYPE, (leaf) => new InspectorView(leaf));
+
+		this.addRibbonIcon("git-branch", "Mermaid Inspector (prototype)", () => {
+			this.activateView();
+		});
 
 		this.addCommand({
 			id: "open-mermaid-inspector",
-			name: "Open Mermaid Inspector (demo)",
+			name: "Open Mermaid Inspector (prototype)",
 			callback: () => this.activateView(),
 		});
 	}
@@ -17,14 +21,15 @@ export default class MermaidInspectorPlugin extends Plugin {
 		this.app.workspace.detachLeavesOfType(VIEW_TYPE);
 	}
 
-	private async activateView() {
-		const existing = this.app.workspace.getLeavesOfType(VIEW_TYPE);
-		if (existing.length) {
-			this.app.workspace.revealLeaf(existing[0]);
+	async activateView() {
+		const { workspace } = this.app;
+		const existing = workspace.getLeavesOfType(VIEW_TYPE);
+		if (existing.length > 0) {
+			workspace.revealLeaf(existing[0]);
 			return;
 		}
-		const leaf = this.app.workspace.getLeaf("tab");
+		const leaf = workspace.getLeaf("tab");
 		await leaf.setViewState({ type: VIEW_TYPE, active: true });
-		this.app.workspace.revealLeaf(leaf);
+		workspace.revealLeaf(leaf);
 	}
 }

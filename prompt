@@ -1,0 +1,52 @@
+First Milestone
+
+**Hard rules for this milestone:**
+
+- Use **Mermaid for all layout and visual rendering**. Do **not** implement custom node/edge drawing or your own layout engine.
+- The only custom work is **animation/tweening between two full Mermaid renders**.
+- Mermaid syntax is the input format. You will generate different versions of the source (collapsed vs expanded scopes) using simple string manipulation or a minimal generator for now.
+- Focus **only** on two-level expansion of two subgraphs inside each other for the prototype. Deep nesting and full focusPath can come later.
+
+**Goal**
+Build a Svelte component (inside the Obsidian view skeleton) that:
+1. Takes a hardcoded Mermaid flowchart string containing at least two nested `subgraphs`.
+2. Renders it with Mermaid (all subgraphs start collapsed / shown as styled blocks).
+3. When the user clicks a subgraph block, smoothly animates the transition to the expanded version:
+   - The clicked cluster grows.
+   - Interior nodes and edges appear with fade/scale.
+   - All other nodes and edges move smoothly to their new positions (no jumps, no overlaps).
+4. The animation must feel liquid and "everything moves out of the way".
+
+**Critical technical requirements (these are why previous attempts failed)**
+- After every `mermaid.render()`, **post-process the returned SVG** and add stable `data-node-id`, `data-edge-id`, `data-cluster-id` attributes based on the original Mermaid names.
+- To animate an expansion:
+  1. Render old state → extract positions map (using the stable data-* ids + getBBox / transform).
+  2. Generate new source (with the target subgraph expanded).
+  3. Render new state → extract positions map.
+  4. Mount/replace with the new SVG.
+  5. For every matching element (by stable id): set initial transform so it starts where it was in the old render, then animate to its natural final position/size.
+  6. Special handling for cluster `<rect>` (animate x/y/width/height) and for new interior content (fade in + slight scale).
+  7. Edges: morph the `d` path attribute (use simple point interpolation or a small helper).
+- Use Svelte 5 runes or manual rAF / CSS transitions for the tweens. Keep animation duration ~250-400ms.
+- Clicks are delegated on the SVG (look for elements with `data-cluster-id`).
+
+**What is forbidden in this milestone**
+- Building a full custom SVG renderer from nodes/edges data.
+- Using dagre for the main layout (Mermaid must do the layout).
+- Any Obsidian file loading, registration, pan/zoom, or theme sync.
+
+**Project structure**
+Mirror your `obsidian-viewpoint` example.
+Create at least:
+- `src/components/MermaidInspector.svelte` (or similar) that owns the current source, renders via mermaid, and handles the before/after tween logic.
+- A small utility for "render + add stable data attrs + extract positions map".
+- One hardcoded test Mermaid string
+
+**Success criteria**
+- Initial render looks like normal Mermaid with subgraphs as nice collapsed blocks.
+- Clicking a block triggers a smooth, non-jarring animation where the diagram reconfigures correctly and elements visibly slide/fade into new positions.
+- No overlaps after animation.
+- You can expand/collapse the same block multiple times cleanly.
+- Code is reasonably clean and the tween logic is isolated.
+
+Start now with the skeleton from your viewpoint example + the requirements above. Stop when the success criteria are met. Do not add extra features.

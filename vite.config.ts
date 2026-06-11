@@ -1,3 +1,4 @@
+import { svelte, vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import builtins from "builtin-modules";
 import fs from "node:fs";
 import path from "node:path";
@@ -31,7 +32,9 @@ export default defineConfig(({ mode }) => {
     return {};
   }
 
-  const plugins: PluginOption[] = [];
+  const plugins: PluginOption[] = [
+    svelte({ preprocess: vitePreprocess() }) as PluginOption,
+  ];
 
   // Only run the post-build copy in real production builds, never during tests or dev
   if (!isDev && !isVitest) {
@@ -40,14 +43,37 @@ export default defineConfig(({ mode }) => {
       closeBundle() {
         const buildDir = "build";
         fs.mkdirSync(vaultPluginDir, { recursive: true });
-        const filesToCopy = ["main.js", "styles.css", "manifest.json", "versions.json"];
-        for (const file of filesToCopy) {
+
+        // Copy the entry + styles + metadata...
+        const alwaysCopy = ["main.js", "styles.css", "manifest.json", "versions.json"];
+        for (const file of alwaysCopy) {
           const src = path.join(buildDir, file);
           const dest = path.join(vaultPluginDir, file);
           if (fs.existsSync(src)) {
             fs.copyFileSync(src, dest);
             console.log(`[copy-to-vault] Copied ${file} to ${vaultPluginDir}`);
           }
+        }
+
+        // ...plus any other emitted JS/CJS chunks (in case inlineDynamicImports ever gets disabled
+        // or Mermaid internals force additional files). This prevents "Cannot find module './xxx.cjs'"
+        // at plugin load time.
+        try {
+          const emitted = fs.readdirSync(buildDir);
+          for (const file of emitted) {
+            if (file === "main.js" || file === "styles.css") continue;
+            if (!/\.(js|cjs)$/.test(file)) continue;
+            if (file.endsWith(".map")) continue;
+
+            const src = path.join(buildDir, file);
+            const dest = path.join(vaultPluginDir, file);
+            if (fs.existsSync(src)) {
+              fs.copyFileSync(src, dest);
+              console.log(`[copy-to-vault] Copied ${file} to ${vaultPluginDir}`);
+            }
+          }
+        } catch (e) {
+          console.warn("[copy-to-vault] Could not scan for extra chunks:", e);
         }
       },
     });
@@ -76,6 +102,11 @@ export default defineConfig(({ mode }) => {
         output: {
           entryFileNames: "main.js",
           assetFileNames: "styles.css",
+          // Force a single bundle. Mermaid + its sub-diagrams (katex, cytoscape, rough, etc.)
+          // cause Rollup to emit many chunks by default. Obsidian plugins expect the
+          // entry (main.js) + any siblings to be self-contained in the plugin folder.
+          // inlineDynamicImports prevents separate chunk files.
+          inlineDynamicImports: true,
           ...(useSourcemapBase
             ? {
                 sourcemapBaseUrl: pathToFileURL(sourcemapBaseDir).toString(),

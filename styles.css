@@ -93,3 +93,88 @@
 .node:hover rect {
 	fill: var(--background-modifier-hover);
 }
+
+/* Full-bleed layout for the prototype view inside Obsidian.
+   We explicitly set height 100% on the key layers so that the pannable
+   viewport reliably fills the available space (fixes panning in Chromium/Obsidian views).
+   overflow: hidden on the outer layers prevents unwanted scrollbars/overflow. */
+.mermaid-inspector-container,
+.mermaid-inspector-container .view-content {
+  padding: 0 !important;
+  height: 100%;
+}
+
+.mi-root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden; /* contain everything */
+}
+
+.mi-header {
+  flex: 0 0 auto;
+}
+
+.mi-canvas {
+  flex: 1 1 0px; /* important for proper flex height in some containers */
+  min-height: 0;
+  position: relative;
+  background: var(--background-primary);
+  overflow: hidden;
+  height: 100%; /* belt-and-suspenders for panning area */
+}
+
+/* Pannable viewport - this is the actual interactive pan/zoom surface */
+.mi-viewport {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100%;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.mi-viewport.is-panning {
+  cursor: grabbing;
+}
+
+/* The element that receives the live pan/zoom transform. The mermaid SVG is appended inside it. */
+.mi-diagram-host {
+  /* The host is placed inside the world; its content (the SVG) determines the "diagram size" in world units */
+  display: block;
+}
+
+/* World layer that gets the pan/zoom (stolen from viewpoint Canvas).
+   Using the zoom property + translate adjusted by /zoom gives stable panning/zooming behavior. */
+.mi-diagram-world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+
+/* During animation we drive attributes directly; disable any accidental CSS transition on rects/paths we control */
+.mi-canvas rect,
+.mi-canvas path {
+  transition: none !important;
+}
+
+.mi-reset {
+  margin-left: 8px;
+  padding: 1px 8px;
+  font-size: 11px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.mi-reset:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
