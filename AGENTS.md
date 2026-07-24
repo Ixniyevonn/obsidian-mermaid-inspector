@@ -22,3 +22,5 @@ I do reload Obsidian completely after each update, when I describe problem it wa
 - Run relevant file-scoped checks (typecheck, lint, test) after edits and fix until green before considering the task done.
 - Prefer running code/tests over plausible-looking output.
 - For UI/frontend work: confirm functionality works end-to-end (real interactions, not just static render).
+
+Don't use NODE, always use BUN

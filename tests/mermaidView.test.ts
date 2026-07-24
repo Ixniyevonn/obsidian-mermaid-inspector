@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { getViewSource } from "../src/utils/mermaidView";
+import { getViewSource, getViewSourceWithMeta } from "../src/utils/mermaidView";
 
 // Helper: collect "A --> B" style edges from rendered mermaid source.
 // Returns a Set of "src --> dst" strings (ignores edge labels and arrow styles).
@@ -109,5 +109,27 @@ describe("getViewSource — edge connectivity", () => {
     // Count occurrences of "Outer --> Notify" — should be exactly 1
     const matches = src.match(/Outer\s*-->\s*Notify/g);
     expect(matches?.length ?? 0).toBe(1);
+  });
+});
+
+describe("getViewSourceWithMeta — content-based edge keys", () => {
+  it("produces edgeKeys using source node ids (including proxies) for stable matching", () => {
+    const { edgeKeys } = getViewSourceWithMeta(new Set());
+    // Should contain the redirected boundary connections using the cluster ids
+    expect(edgeKeys).toContain("Catalog--Outer");
+    expect(edgeKeys).toContain("Outer--Notify");
+    expect(edgeKeys).toContain("Outer--Inventory");
+    // No internal node ids in keys when fully collapsed
+    expect(edgeKeys.some((k) => k.includes("Validate"))).toBe(false);
+    expect(edgeKeys.some((k) => k.includes("Enter"))).toBe(false);
+  });
+
+  it("when partially expanded, includes keys for both proxy and internal edges", () => {
+    const { edgeKeys } = getViewSourceWithMeta(new Set(["Outer"]));
+    expect(edgeKeys).toContain("Review--Inner");
+    expect(edgeKeys).toContain("Inner--ShipPrep");
+    // Inner still collapsed so its internals are stripped; an Outer-level internal edge is present
+    expect(edgeKeys).toContain("Validate--Build");
+    expect(edgeKeys.some((k) => k.includes("Enter"))).toBe(false);
   });
 });

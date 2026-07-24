@@ -1,0 +1,13 @@
+flowchart LR
+  A --> Inside1
+  B -.->|optional| Inside2
+  C ==>|priority| Inside1
+  subgraph Scope["Busy Boundary"]
+    Inside1 --> Shared
+    Inside2 --> Shared
+    Shared --> Exit1
+    Shared --> Exit2
+  end
+  Exit1 --> X
+  Exit2 --> Y
+  Inside1 --> Z

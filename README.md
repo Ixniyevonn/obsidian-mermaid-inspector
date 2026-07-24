@@ -23,7 +23,7 @@ Subgraphs render as distinct collapsed blocks by default. Click to expand a bloc
 
 ## Implementation Architecture
 
-### Re-render + Tween Animation Approach (Recommended for Milestone 1)
+### Re-render + Tween Animation Approach
 
 This is the simplest way to get correct layouts + smooth "everything moves" animation while still using Mermaid for all visuals.
 

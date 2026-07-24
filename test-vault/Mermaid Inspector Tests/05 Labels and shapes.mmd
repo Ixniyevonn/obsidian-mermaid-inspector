@@ -1,0 +1,10 @@
+flowchart LR
+  Customer(["Customer / API"])
+  subgraph Checkout["Checkout — EU"]
+    Validate{"Total ≥ €50?"}
+    Cache[("Cache: orders")]
+    Note["Quoted: \"ready\""]
+    Validate -->|yes| Cache --> Note
+  end
+  Customer --> Validate
+  Note --> Finish[["Finish & notify"]]

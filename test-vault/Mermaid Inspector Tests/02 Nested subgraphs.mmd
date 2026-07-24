@@ -1,0 +1,13 @@
+flowchart TB
+  Request["Request"] --> Validate
+  subgraph Pipeline["Processing Pipeline"]
+    Validate{"Valid?"}
+    subgraph Worker["Background Worker"]
+      Queue[(Queue)] --> Execute["Execute Job"]
+      Execute --> Result["Store Result"]
+    end
+    Validate -->|yes| Worker
+    Worker --> Publish["Publish"]
+  end
+  Validate -->|no| Rejected["Rejected"]
+  Publish --> Complete["Complete"]

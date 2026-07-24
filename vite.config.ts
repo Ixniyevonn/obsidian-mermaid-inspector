@@ -22,7 +22,8 @@ const setOutDir = (mode: string) => {
 export default defineConfig(({ mode }) => {
   const isDev = mode === "development";
   const isVitest = !!process.env.VITEST || mode === "test";
-  const vaultPluginDir = "./test-vault/.obsidian/plugins/obsidian-mermaid-inspector";
+  const vaultPluginDir =
+    "./test-vault/.obsidian/plugins/obsidian-mermaid-inspector";
 
   // When running under Vitest, return a minimal config.
   // This prevents the lib build config (rollupOptions, sourcemapBaseUrl, closeBundle copy hook)
@@ -45,7 +46,12 @@ export default defineConfig(({ mode }) => {
         fs.mkdirSync(vaultPluginDir, { recursive: true });
 
         // Copy the entry + styles + metadata...
-        const alwaysCopy = ["main.js", "styles.css", "manifest.json", "versions.json"];
+        const alwaysCopy = [
+          "main.js",
+          "styles.css",
+          "manifest.json",
+          "versions.json",
+        ];
         for (const file of alwaysCopy) {
           const src = path.join(buildDir, file);
           const dest = path.join(vaultPluginDir, file);
@@ -69,7 +75,9 @@ export default defineConfig(({ mode }) => {
             const dest = path.join(vaultPluginDir, file);
             if (fs.existsSync(src)) {
               fs.copyFileSync(src, dest);
-              console.log(`[copy-to-vault] Copied ${file} to ${vaultPluginDir}`);
+              console.log(
+                `[copy-to-vault] Copied ${file} to ${vaultPluginDir}`,
+              );
             }
           }
         } catch (e) {
@@ -80,7 +88,8 @@ export default defineConfig(({ mode }) => {
   }
 
   // Only provide sourcemapBaseUrl when it makes sense (prevents File URL errors under vitest/vite-node)
-  const useSourcemapBase = (mode === "development" || mode === "production") && !isVitest;
+  const useSourcemapBase =
+    (mode === "development" || mode === "production") && !isVitest;
 
   // Always compute an absolute path for the base (path.join ensures correct separators on Windows)
   const sourcemapBaseDir = path.join(
@@ -105,8 +114,8 @@ export default defineConfig(({ mode }) => {
           // Force a single bundle. Mermaid + its sub-diagrams (katex, cytoscape, rough, etc.)
           // cause Rollup to emit many chunks by default. Obsidian plugins expect the
           // entry (main.js) + any siblings to be self-contained in the plugin folder.
-          // inlineDynamicImports prevents separate chunk files.
-          inlineDynamicImports: true,
+          // codeSplitting prevents separate chunk files.
+          codeSplitting: false,
           ...(useSourcemapBase
             ? {
                 sourcemapBaseUrl: pathToFileURL(sourcemapBaseDir).toString(),

@@ -6,317 +6,269 @@ export interface Rect {
 	width: number;
 	height: number;
 }
-
 export interface Positions {
 	clusters: Record<string, Rect>;
 	nodes: Record<string, Rect>;
-	edges: Record<string, string>; // data-edge-id -> d
+	edges: Record<string, string>;
+}
+export interface TagMetadata {
+	labelToId: Record<string, string>;
+	edgeKeys?: string[];
+	collapsedScopeIds?: string[];
 }
 
-let initialized = false;
+export const MERMAID_THEME_VARIABLES = {
+	background: "#ffffff",
+	primaryColor: "#f2f3f5",
+	primaryTextColor: "#1f2328",
+	lineColor: "#59636e",
+	clusterBkg: "#f6f8fa",
+	clusterBorder: "#6f42c1",
+} as const;
 
-export function ensureMermaidInitialized() {
+let initialized = false;
+let renderSequence = 0;
+
+export function ensureMermaidInitialized(): void {
 	if (initialized) return;
 	mermaid.initialize({
 		startOnLoad: false,
 		securityLevel: "strict",
-		flowchart: {
-			curve: "basis",
-			htmlLabels: false,
-		},
-		theme: "default",
+		theme: "base",
+		themeVariables: MERMAID_THEME_VARIABLES,
+		flowchart: { curve: "basis", htmlLabels: false },
 	});
 	initialized = true;
 }
 
-export async function renderMermaidToSvg(
-	source: string,
-	containerId: string,
-): Promise<string> {
+export async function renderMermaidToSvg(source: string): Promise<string> {
 	ensureMermaidInitialized();
-	// mermaid.render returns { svg, bindFunctions }
-	const { svg } = await mermaid.render(containerId, source);
+	const { svg } = await mermaid.render(
+		`mermaid-inspector-${++renderSequence}`,
+		source,
+	);
 	return svg;
 }
 
-/**
- * Parse a temp SVG string into a live SVGSVGElement, post-process in place to add
- * stable data-* ids based on labels / structure, return the element.
- * The container is used only for parsing; not attached yet.
- */
-export function postProcessAndTag(svgString: string): SVGSVGElement {
+function textOf(element: Element): string {
+	return (
+		element.querySelector(".label, .cluster-label, text, foreignObject")
+			?.textContent ?? ""
+	)
+		.replace(/\s+/g, " ")
+		.trim();
+}
+
+function logicalId(
+	element: Element,
+	map: Record<string, string>,
+): string | null {
+	const label = textOf(element);
+	if (map[label]) return map[label];
+	const raw = element.id;
+	for (const id of Object.values(map)) {
+		if (raw === id || raw.includes(`-${id}-`) || raw.endsWith(`-${id}`))
+			return id;
+	}
+	return /^[A-Za-z][\w.-]*$/.test(label) ? label : null;
+}
+
+function edgePaths(svg: SVGSVGElement): SVGPathElement[] {
+	return Array.from(svg.querySelectorAll<SVGPathElement>("path")).filter(
+		(path) => {
+			if (path.closest("defs, marker")) return false;
+			const d = path.getAttribute("d")?.trim() ?? "";
+			return d.startsWith("M") && /[CLQ]/i.test(d);
+		},
+	);
+}
+
+function pathEndpoints(
+	path: SVGPathElement,
+): [number, number, number, number] | null {
+	const numbers = (path.getAttribute("d") ?? "")
+		.match(/-?\d+(?:\.\d+)?/g)
+		?.map(Number);
+	if (!numbers || numbers.length < 4) return null;
+	return [
+		numbers[0],
+		numbers[1],
+		numbers[numbers.length - 2],
+		numbers[numbers.length - 1],
+	];
+}
+
+function center(element: Element): [number, number] | null {
+	const shape = element.querySelector(
+		"rect, circle, ellipse, polygon",
+	) as SVGGraphicsElement | null;
+	const target = (shape ?? element) as SVGGraphicsElement;
+	try {
+		const box = target.getBBox();
+		return [box.x + box.width / 2, box.y + box.height / 2];
+	} catch {
+		const rect = shape?.tagName === "rect" ? shape : null;
+		if (!rect) return null;
+		const x = Number(rect.getAttribute("x"));
+		const y = Number(rect.getAttribute("y"));
+		const width = Number(rect.getAttribute("width"));
+		const height = Number(rect.getAttribute("height"));
+		return [x + width / 2, y + height / 2];
+	}
+}
+
+export function postProcessAndTag(
+	svgString: string,
+	metadata: TagMetadata | string[] = { labelToId: {} },
+): SVGSVGElement {
 	const wrapper = document.createElement("div");
 	wrapper.innerHTML = svgString.trim();
-	const svgEl = wrapper.querySelector("svg") as SVGSVGElement | null;
-	if (!svgEl) throw new Error("No SVG in mermaid render output");
+	const svg = wrapper.querySelector("svg") as SVGSVGElement | null;
+	if (!svg) throw new Error("Mermaid returned no SVG element");
+	const config: TagMetadata = Array.isArray(metadata)
+		? { labelToId: {}, edgeKeys: metadata }
+		: metadata;
 
-	// Make sure it has namespace etc (it does from mermaid)
-	addStableDataAttributes(svgEl);
-	return svgEl;
-}
+	for (const cluster of svg.querySelectorAll("g.cluster")) {
+		const id = logicalId(cluster, config.labelToId);
+		if (id) cluster.setAttribute("data-cluster-id", id);
+	}
+	const collapsedScopes = new Set(config.collapsedScopeIds ?? []);
+	for (const node of svg.querySelectorAll("g.node, g.statediagram-state")) {
+		const id = logicalId(node, config.labelToId);
+		if (!id) continue;
+		if (collapsedScopes.has(id)) node.setAttribute("data-cluster-id", id);
+		else node.setAttribute("data-node-id", id);
+	}
 
-function addStableDataAttributes(svgEl: SVGSVGElement) {
-	// --- Clusters: g.cluster ---
-	const clusters = svgEl.querySelectorAll("g.cluster");
-	clusters.forEach((g) => {
-		// Label text is usually in .cluster-label or descendant text
-		const labelText = extractLabelText(g);
-		if (labelText) {
-			const id = sanitizeId(labelText);
-			if (id) {
-				(g as SVGGElement).setAttribute("data-cluster-id", id);
+	const paths = edgePaths(svg);
+	const keys = config.edgeKeys ?? [];
+	const anchors = new Map<string, [number, number]>();
+	for (const element of svg.querySelectorAll(
+		"[data-node-id], [data-cluster-id]",
+	)) {
+		const id =
+			element.getAttribute("data-node-id") ??
+			element.getAttribute("data-cluster-id");
+		const point = center(element);
+		if (id && point) anchors.set(id, point);
+	}
+	const remaining = new Set(keys);
+	for (const path of paths) {
+		const ends = pathEndpoints(path);
+		let best: string | undefined;
+		let bestDistance = Number.POSITIVE_INFINITY;
+		if (ends && anchors.size) {
+			for (const key of remaining) {
+				const split = key.indexOf("--");
+				const from = anchors.get(key.slice(0, split));
+				const to = anchors.get(key.slice(split + 2));
+				if (!from || !to) continue;
+				const direct =
+					Math.hypot(ends[0] - from[0], ends[1] - from[1]) +
+					Math.hypot(ends[2] - to[0], ends[3] - to[1]);
+				const reverse =
+					Math.hypot(ends[0] - to[0], ends[1] - to[1]) +
+					Math.hypot(ends[2] - from[0], ends[3] - from[1]);
+				const distance = Math.min(direct, reverse);
+				if (distance < bestDistance) {
+					bestDistance = distance;
+					best = key;
+				}
 			}
 		}
-	});
-
-	// --- Nodes: g.node ---
-	const nodes = svgEl.querySelectorAll("g.node");
-	nodes.forEach((g) => {
-		const labelText = extractLabelText(g);
-		if (labelText) {
-			const id = sanitizeId(labelText);
-			if (id) {
-				(g as SVGGElement).setAttribute("data-node-id", id);
-			}
-		}
-	});
-
-	// --- Edges: pair curve paths with edgeLabel texts that carry our eXXX ids ---
-	tagEdgesWithStableIds(svgEl);
-}
-
-function extractLabelText(el: Element): string | null {
-	// Try direct text nodes under label groups, or any text
-	const textEl = el.querySelector("text, tspan");
-	if (textEl) {
-		const t = (textEl.textContent || "").trim();
-		if (t) return t;
-	}
-	// Sometimes label is in foreignObject or title
-	const title = el.querySelector("title");
-	if (title?.textContent) return title.textContent.trim();
-	// Fallback: the element's own text if it's a text
-	if (el.textContent) {
-		const t = el.textContent.trim();
-		if (t && t.length < 40) return t;
-	}
-	return null;
-}
-
-function sanitizeId(raw: string): string | null {
-	// Our labels are simple like "Outer Scope", "Inner Scope", "A", "X", or "eA_Inner"
-	// We want "Outer", "Inner", "A", "X" or the eXXX as-is for edges.
-	const trimmed = raw.trim();
-	// If it is one of our edge markers like eA_Inner keep as edge id
-	if (/^e[0-9A-Za-z_]+$/.test(trimmed)) return trimmed;
-
-	// Map known display labels back to stable ids used in generator.
-	// Keep in sync with the demo diagram in MermaidInspector.svelte.
-	const map: Record<string, string> = {
-		"Order Processing": "Outer",
-		"Payment Subsystem": "Inner",
-		User: "User",
-		Catalog: "Catalog",
-		Promo: "Promo",
-		Validate: "Validate",
-		Build: "Build",
-		"Review Items": "Review",
-		"Audit Log": "Audit",
-		"Enter Payment": "Enter",
-		"Validate Card": "ValidateCard",
-		"Fraud Check": "Fraud",
-		Authorize: "Auth",
-		"Capture Funds": "Capture",
-		"Issue Receipt": "Receipt",
-		"Apply Discounts": "Discounts",
-		"Confirm Order": "Confirm",
-		"Prepare Shipment": "ShipPrep",
-		"Notify Customer": "Notify",
-		"Reserve Stock": "Inventory",
-		Analytics: "Analytics",
-		Done: "Done",
-		// legacy fallbacks from earlier prototypes
-		"Outer Scope": "Outer",
-		"Inner Scope": "Inner",
-		Start: "Start",
-		"Load Cart": "Load",
-		A: "A",
-		B: "B",
-		C: "C",
-		D: "D",
-		X: "X",
-		Y: "Y",
-		Z: "Z",
-	};
-	if (map[trimmed]) return map[trimmed];
-
-	// Try to strip quotes/spaces for safety
-	const cleaned = trimmed.replace(/["'`]/g, "").trim();
-	if (map[cleaned]) return map[cleaned];
-
-	// As last resort, if it looks like a simple token use it (for flexibility)
-	if (/^[A-Za-z][A-Za-z0-9_]*$/.test(cleaned) && cleaned.length <= 20) {
-		return cleaned;
-	}
-	return null;
-}
-
-function tagEdgesWithStableIds(svgEl: SVGSVGElement) {
-	// Collect candidate edge paths (those with M.. and curves/lines, outside of <defs>)
-	const allPaths = Array.from(svgEl.querySelectorAll("path"));
-	const edgePaths: SVGPathElement[] = [];
-	for (const p of allPaths) {
-		// Skip anything inside defs or markers
-		if (p.closest("defs, marker")) continue;
-		const d = p.getAttribute("d") || "";
-		if (
-			d?.trim().startsWith("M") &&
-			(d.includes("C") || d.includes("L") || d.includes("Q"))
-		) {
-			edgePaths.push(p);
+		best ??= remaining.values().next().value;
+		if (best) {
+			path.setAttribute("data-edge-id", best);
+			remaining.delete(best);
 		}
 	}
-
-	// Collect edge labels in DOM order
-	const labelContainers = Array.from(
-		svgEl.querySelectorAll("g.edgeLabel, .edgeLabel"),
-	);
-	const edgeLabelTexts: Element[] = [];
-	for (const lc of labelContainers) {
-		const t = lc.querySelector("text, tspan");
-		if (t) edgeLabelTexts.push(t);
+	if (!keys.length) {
+		const labels = Array.from(svg.querySelectorAll(".edgeLabel"));
+		paths.forEach((path, index) => {
+			const label = labels[index]?.textContent?.trim();
+			if (label) path.setAttribute("data-edge-id", label);
+		});
+		labels.forEach((label) => {
+			label.remove();
+		});
 	}
-
-	// Pair by index (Mermaid generates them in source order)
-	const max = Math.min(edgePaths.length, edgeLabelTexts.length);
-	for (let i = 0; i < max; i++) {
-		const txt = (edgeLabelTexts[i].textContent || "").trim();
-		if (/^e[0-9A-Za-z_]+$/.test(txt)) {
-			const path = edgePaths[i];
-			path.setAttribute("data-edge-id", txt);
-			// Remove/hide the label group so it doesn't pollute the visual
-			const container = edgeLabelTexts[i].closest("g.edgeLabel, .edgeLabel");
-			if (container?.parentNode) {
-				container.parentNode.removeChild(container);
-			}
-		}
-	}
+	svg.removeAttribute("style");
+	applyIntrinsicSvgSize(svg);
+	return svg;
 }
 
-/**
- * Extract positions for all tagged elements.
- * Uses getBBox() which is in SVG local coordinates (good for our tweening).
- */
-export function extractPositions(svgEl: SVGSVGElement): Positions {
-	const clusters: Record<string, Rect> = {};
-	const nodes: Record<string, Rect> = {};
-	const edges: Record<string, string> = {};
-
-	// Clusters: prefer the rect inside, else bbox of the g
-	svgEl.querySelectorAll("[data-cluster-id]").forEach((g) => {
-		const id = (g as SVGGElement).getAttribute("data-cluster-id") || "";
-		if (!id) return;
-		const rect = g.querySelector("rect");
-		let r: Rect;
-		if (rect) {
-			const x = parseFloat(rect.getAttribute("x") || "0");
-			const y = parseFloat(rect.getAttribute("y") || "0");
-			const w = parseFloat(rect.getAttribute("width") || "0");
-			const h = parseFloat(rect.getAttribute("height") || "0");
-			r = { x, y, width: w, height: h };
-		} else {
-			const bb = (g as SVGGElement).getBBox();
-			r = { x: bb.x, y: bb.y, width: bb.width, height: bb.height };
-		}
-		clusters[id] = r;
-	});
-
-	// Nodes: bbox of the node g (includes label + shape)
-	svgEl.querySelectorAll("[data-node-id]").forEach((g) => {
-		const id = (g as SVGGElement).getAttribute("data-node-id") || "";
-		if (!id) return;
-		const bb = (g as SVGGElement).getBBox();
-		nodes[id] = { x: bb.x, y: bb.y, width: bb.width, height: bb.height };
-	});
-
-	// Edges: current d
-	svgEl.querySelectorAll("[data-edge-id]").forEach((p) => {
-		const id = (p as SVGPathElement).getAttribute("data-edge-id") || "";
-		if (!id) return;
-		const d = (p as SVGPathElement).getAttribute("d") || "";
-		if (d) edges[id] = d;
-	});
-
-	return { clusters, nodes, edges };
-}
-
-/**
- * Simple path d interpolator.
- * Extracts numeric values in order, lerps them, rebuilds string.
- * Assumes the two paths have identical command letter sequence and value count.
- * If not, falls back to target d.
- */
-export function interpolatePathD(
-	dFrom: string,
-	dTo: string,
-	t: number,
-): string {
-	const numsFrom = extractNumbers(dFrom);
-	const numsTo = extractNumbers(dTo);
-	const cmdsFrom = extractCommands(dFrom);
-	const cmdsTo = extractCommands(dTo);
-
+export function applyIntrinsicSvgSize(svg: SVGSVGElement): void {
+	const values = (svg.getAttribute("viewBox") ?? "")
+		.trim()
+		.split(/[\s,]+/)
+		.map(Number);
 	if (
-		numsFrom.length !== numsTo.length ||
-		cmdsFrom.join("") !== cmdsTo.join("")
+		values.length === 4 &&
+		values.every(Number.isFinite) &&
+		values[2] > 0 &&
+		values[3] > 0
 	) {
-		// Structure mismatch: snap to target (avoids garbage)
-		return dTo;
+		svg.setAttribute("width", String(values[2]));
+		svg.setAttribute("height", String(values[3]));
+	} else {
+		svg.removeAttribute("width");
+		svg.removeAttribute("height");
 	}
-
-	const outNums = numsFrom.map((v, i) => lerp(v, numsTo[i], t));
-	return rebuildPath(dTo, outNums); // use dTo as template for letters/spacing
+	svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
 }
-
-function extractNumbers(d: string): number[] {
-	const re = /-?\d*\.?\d+(?:e[-+]?\d+)?/gi;
-	const out: number[] = [];
-	let m: RegExpExecArray | null = re.exec(d);
-	while (m !== null) {
-		out.push(parseFloat(m[0]));
-		m = re.exec(d);
+export function extractPositions(svg: SVGSVGElement): Positions {
+	const result: Positions = { clusters: {}, nodes: {}, edges: {} };
+	for (const element of svg.querySelectorAll<SVGGElement>(
+		"[data-cluster-id]",
+	)) {
+		const id = element.dataset.clusterId;
+		if (!id) continue;
+		const rect = element.querySelector("rect");
+		result.clusters[id] = rect
+			? {
+					x: Number(rect.getAttribute("x")),
+					y: Number(rect.getAttribute("y")),
+					width: Number(rect.getAttribute("width")),
+					height: Number(rect.getAttribute("height")),
+				}
+			: element.getBBox();
 	}
-	return out;
-}
-
-function extractCommands(d: string): string[] {
-	const re = /[A-Za-z]/g;
-	const out: string[] = [];
-	let m: RegExpExecArray | null = re.exec(d);
-	while (m !== null) {
-		out.push(m[0]);
-		m = re.exec(d);
+	for (const element of svg.querySelectorAll<SVGGElement>("[data-node-id]")) {
+		const id = element.dataset.nodeId;
+		if (id) result.nodes[id] = element.getBBox();
 	}
-	return out;
+	for (const path of svg.querySelectorAll<SVGPathElement>("[data-edge-id]")) {
+		const id = path.dataset.edgeId;
+		const d = path.getAttribute("d");
+		if (id && d) result.edges[id] = d;
+	}
+	return result;
 }
 
-function rebuildPath(template: string, numbers: number[]): string {
-	let i = 0;
-	return template.replace(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi, () => {
-		const v = numbers[i++];
-		return v == null ? "0" : String(Number(v.toFixed(3)));
-	});
+export function interpolatePathD(from: string, to: string, t: number): string {
+	const pattern = /-?\d*\.?\d+(?:e[-+]?\d+)?/gi;
+	const fromNumbers = from.match(pattern)?.map(Number) ?? [];
+	const toNumbers = to.match(pattern)?.map(Number) ?? [];
+	const commands = (value: string) => value.match(/[A-Za-z]/g)?.join("") ?? "";
+	if (
+		fromNumbers.length !== toNumbers.length ||
+		commands(from) !== commands(to)
+	)
+		return to;
+	let index = 0;
+	return to.replace(pattern, () =>
+		String(
+			Number(
+				(
+					fromNumbers[index] +
+					(toNumbers[index] - fromNumbers[index++]) * t
+				).toFixed(3),
+			),
+		),
+	);
 }
 
-function lerp(a: number, b: number, t: number): number {
-	return a + (b - a) * t;
-}
-
-/**
- * Ease for liquid feel (easeOutCubic-ish)
- */
 export function ease(t: number): number {
-	// easeOutCubic
-	const u = t - 1;
-	return u * u * u + 1;
+	return 1 - (1 - t) ** 3;
 }

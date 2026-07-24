@@ -1,0 +1,71 @@
+flowchart TB
+  Start(["Start / API"]) --> Gateway
+  Priority["Priority input"] ==>|urgent| DeepWorker
+  Optional["Optional input"] -.->|retry| Validate
+  Disconnected["Disconnected node"]
+
+  subgraph Frontend["Frontend — Public"]
+    direction LR
+    Gateway{"Route ≥ v2?"}
+    Browser["Browser & mobile"]
+    Gateway -->|web| Browser
+
+    subgraph ClientCache["Client Cache"]
+      Cache[("Indexed DB")]
+      CacheNote["Quoted: \"fresh\""]
+      Cache --> CacheNote
+    end
+
+    Browser --> ClientCache
+  end
+
+  subgraph Backend["Backend Services"]
+    direction TB
+    Validate{"Payload valid?"}
+
+    subgraph Processing["Processing Pipeline"]
+      Normalize[["Normalize"]]
+
+      subgraph Workers["Worker Pool"]
+        Queue[("Queue: jobs")]
+
+        subgraph DeepWorker["Deep Worker — L4"]
+          Execute["Execute job"]
+          Audit{{"Audit event"}}
+          Execute --> Audit
+        end
+
+        Queue --> DeepWorker
+      end
+
+      Normalize --> Workers
+    end
+
+    subgraph Single["Single-node Scope"]
+      Health(["Health check"])
+    end
+
+    subgraph Empty["Intentionally Empty Scope"]
+    end
+
+    Validate -->|yes| Processing
+    Validate -->|health| Single
+  end
+
+  subgraph Observability["Observability"]
+    Metrics[/"Metrics"/]
+    Logs[\"Logs"\]
+    Metrics --> Logs
+  end
+
+  Gateway --> Validate
+  ClientCache --> Validate
+  Validate -->|no| Rejected["Rejected"]
+  DeepWorker --> Result["Result"]
+  Audit --> Observability
+  Processing --> Observability
+  Single --> Observability
+  Empty --> EmptyTarget["Empty scope target"]
+  Result --> SharedDone(["Shared done"])
+  Observability --> SharedDone
+  Rejected --> SharedDone

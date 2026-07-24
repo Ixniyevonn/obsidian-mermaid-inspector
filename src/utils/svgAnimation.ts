@@ -1,0 +1,48 @@
+export interface VisualRect {
+	left: number;
+	top: number;
+	width: number;
+	height: number;
+}
+
+export type VisualRects = Record<string, VisualRect>;
+
+export function captureVisualRects(svg: SVGSVGElement): VisualRects {
+	const result: VisualRects = {};
+	for (const element of svg.querySelectorAll<SVGGraphicsElement>(
+		"[data-node-id], [data-cluster-id]",
+	)) {
+		const id =
+			element.getAttribute("data-node-id") ??
+			element.getAttribute("data-cluster-id");
+		if (!id) continue;
+		const rect = element.getBoundingClientRect();
+		result[id] = {
+			left: rect.left,
+			top: rect.top,
+			width: rect.width,
+			height: rect.height,
+		};
+	}
+	return result;
+}
+
+export function screenDeltaToLocal(
+	deltaX: number,
+	deltaY: number,
+	matrix: Pick<DOMMatrix, "a" | "b" | "c" | "d">,
+): { x: number; y: number } {
+	const determinant = matrix.a * matrix.d - matrix.b * matrix.c;
+	if (Math.abs(determinant) < 1e-8) return { x: 0, y: 0 };
+	return {
+		x: (matrix.d * deltaX - matrix.c * deltaY) / determinant,
+		y: (-matrix.b * deltaX + matrix.a * deltaY) / determinant,
+	};
+}
+
+export function centerDelta(before: VisualRect, after: VisualRect) {
+	return {
+		x: before.left + before.width / 2 - (after.left + after.width / 2),
+		y: before.top + before.height / 2 - (after.top + after.height / 2),
+	};
+}

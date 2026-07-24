@@ -1,0 +1,19 @@
+flowchart TB
+  Input --> L1
+  subgraph L1["Level One"]
+    One["One"]
+    subgraph L2["Level Two"]
+      Two["Two"]
+      subgraph L3["Level Three"]
+        Three["Three"]
+        subgraph L4["Level Four"]
+          Four["Four"]
+          Four --> DeepDone["Deep Done"]
+        end
+        Three --> L4
+      end
+      Two --> L3
+    end
+    One --> L2
+  end
+  L1 --> Output
