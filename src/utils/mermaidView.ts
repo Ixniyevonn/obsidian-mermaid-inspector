@@ -67,6 +67,7 @@ export interface ViewSourceMeta {
 	edgeKeys: string[];
 	labelToId: Record<string, string>;
 	collapsedScopeIds: string[];
+	scopePathByElementId: Record<string, string[]>;
 	scopes: ScopeInfo[];
 }
 
@@ -200,6 +201,23 @@ export function getViewSourceWithMeta(
 		(scope) => isVisibleScope(scope.id) && isEffectivelyExpanded(scope.id),
 	);
 
+	const scopePathByElementId: Record<string, string[]> = {};
+	for (const id of [
+		...diagram.toAST().nodes.keys(),
+		...originalSubgraphs.map((scope) => scope.id),
+	]) {
+		const path: string[] = [];
+		let cursor = id;
+		const seen = new Set<string>();
+		while (parent.has(cursor) && !seen.has(cursor)) {
+			seen.add(cursor);
+			const parentId = parent.get(cursor);
+			if (!parentId) break;
+			path.unshift(parentId);
+			cursor = parentId;
+		}
+		scopePathByElementId[id] = path;
+	}
 	const labelToId: Record<string, string> = {};
 	for (const node of diagram.nodes) {
 		labelToId[labelOf(node.text, node.id)] = node.id;
@@ -230,6 +248,7 @@ export function getViewSourceWithMeta(
 		edgeKeys,
 		labelToId,
 		collapsedScopeIds,
+		scopePathByElementId,
 		scopes,
 	};
 }

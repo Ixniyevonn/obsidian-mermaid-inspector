@@ -7,6 +7,7 @@ import {
 	screenDeltaToLocal,
 	type VisualRects,
 } from "../utils/svgAnimation";
+import { groupBackgroundElements } from "../utils/focusContext";
 import { collapseScope } from "../utils/scopeState";
 import { getViewSourceWithMeta, isBlankMermaidSource, type ScopeInfo } from "../utils/mermaidView";
 import Canvas from "./Canvas.svelte";
@@ -16,7 +17,8 @@ let host: HTMLDivElement, canvas: Canvas;
 let currentSvg: SVGSVGElement | null = null,
 	expanded = new Set<string>();
 let focusPath = $state<string[]>([]),
-	scopes = $state<ScopeInfo[]>([]);
+	scopes = $state<ScopeInfo[]>([]),
+	scopePaths = $state<Record<string, string[]>>({});
 let error = $state(""),
 	empty = $derived(isBlankMermaidSource(source)),
 	busy = $state(false),
@@ -36,6 +38,7 @@ function ancestors(id: string): string[] {
 async function build(): Promise<SVGSVGElement> {
 	const meta = getViewSourceWithMeta(expanded, source);
 	scopes = meta.scopes;
+	scopePaths = meta.scopePathByElementId;
 	const key = `${source}\0${[...expanded].sort().join(",")}`;
 	let text = cache.get(key);
 	if (!text) {
@@ -65,18 +68,7 @@ async function render(animate: boolean, fit = false) {
 		currentSvg = next;
 		next.addEventListener("click", click);
 		next.addEventListener("contextmenu", contextMenu);
-		const focused = focusPath.at(-1);
-		for (const el of next.querySelectorAll<SVGElement>("[data-cluster-id]")) {
-			const id = el.dataset.clusterId!;
-			el.classList.toggle(
-				"mi-context",
-				Boolean(
-					focused &&
-						!focusPath.includes(id) &&
-						!ancestors(id).includes(focused),
-				),
-			);
-		}
+		groupBackgroundElements(next, focusPath.at(-1), scopePaths);
 		if (animate && old) {
 			await tick();
 			await animateFrom(next, old);

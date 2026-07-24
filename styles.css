@@ -6,3 +6,25 @@
 .mi-diagram-host .flowchart-link,.mi-diagram-host .edge-pattern-solid,.mi-diagram-host .edge-pattern-dashed{stroke:var(--text-muted)!important}
 .mi-diagram-host marker path{fill:var(--text-muted)!important;stroke:var(--text-muted)!important}
 .mi-diagram-host .cluster rect{fill:var(--background-secondary-alt,var(--background-secondary))!important}
+.mi-diagram-host .mi-collapsed-scope rect,
+.mi-diagram-host .mi-collapsed-scope path,
+.mi-diagram-host .mi-collapsed-scope polygon {
+  fill: color-mix(in srgb, var(--interactive-accent) 16%, var(--background-secondary)) !important;
+  stroke: var(--interactive-accent) !important;
+  stroke-width: 2.5px !important;
+  stroke-dasharray: 8 3;
+}
+.mi-diagram-host .mi-collapsed-scope text,
+.mi-diagram-host .mi-collapsed-scope .label {
+  font-weight: 700 !important;
+  fill: var(--text-normal) !important;
+}
+.mi-diagram-host .mi-collapsed-scope:hover rect,
+.mi-diagram-host .mi-collapsed-scope:hover path,
+.mi-diagram-host .mi-collapsed-scope:hover polygon {
+  fill: color-mix(in srgb, var(--interactive-accent) 24%, var(--background-secondary)) !important;
+}
+.mi-diagram-host .mi-context-layer {
+  opacity: 0.24;
+  filter: blur(0.7px);
+}

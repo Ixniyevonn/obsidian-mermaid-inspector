@@ -137,8 +137,10 @@ export function postProcessAndTag(
 	for (const node of svg.querySelectorAll("g.node, g.statediagram-state")) {
 		const id = logicalId(node, config.labelToId);
 		if (!id) continue;
-		if (collapsedScopes.has(id)) node.setAttribute("data-cluster-id", id);
-		else node.setAttribute("data-node-id", id);
+		if (collapsedScopes.has(id)) {
+			node.setAttribute("data-cluster-id", id);
+			node.classList.add("mi-collapsed-scope");
+		} else node.setAttribute("data-node-id", id);
 	}
 
 	const paths = edgePaths(svg);
