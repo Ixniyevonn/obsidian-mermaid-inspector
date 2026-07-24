@@ -84,7 +84,7 @@ async function render(animate: boolean, fit = false) {
 		}
 		if (fit) {
 			await tick();
-			canvas.fit(next.viewBox?.baseVal);
+			canvas.fit(next.viewBox?.baseVal, false);
 		}
 	} catch (cause) {
 		error = cause instanceof Error ? cause.message : String(cause);
@@ -259,15 +259,30 @@ $effect(() => {
 <svelte:window onkeydown={(event) => { if (event.key === "Escape") ascend(); }} />
 <section class="mi-root" aria-busy={busy}>
 	<header class="mi-header">
-		<nav aria-label="Focused Mermaid scope">
-			<button class="mi-breadcrumb" onclick={() => applyFocus([])}>Diagram</button>
-			{#each focusPath as id}<span aria-hidden="true">&gt;</span><button class="mi-breadcrumb" onclick={() => applyFocus(focusPath.slice(0, focusPath.indexOf(id) + 1))}>{scopes.find((scope) => scope.id === id)?.label ?? id}</button>{/each}
+		<nav class="mi-focus-path" aria-label="Focused Mermaid scope">
+			<button
+				class="mi-breadcrumb"
+				aria-current={focusPath.length === 0 ? "page" : undefined}
+				onclick={() => applyFocus([])}
+			>Diagram</button>
+			{#each focusPath as id, index}
+				<span class="mi-breadcrumb-separator" aria-hidden="true">/</span>
+				<button
+					class="mi-breadcrumb"
+					aria-current={index === focusPath.length - 1 ? "page" : undefined}
+					title={scopes.find((scope) => scope.id === id)?.label ?? id}
+					onclick={() => applyFocus(focusPath.slice(0, index + 1))}
+				>{scopes.find((scope) => scope.id === id)?.label ?? id}</button>
+			{/each}
 		</nav>
-		<div class="mi-actions"><span>Click: inline | Right-click: focus | Drag: pan | Wheel: zoom | Esc: up</span><button onclick={() => canvas.fit(currentSvg?.viewBox?.baseVal)}>Fit</button></div>
+		<div class="mi-header-actions">
+			<button onclick={() => canvas.fit(currentSvg?.viewBox?.baseVal)}>Fit</button>
+		</div>
 	</header>
 	<div class="mi-canvas">
 		{#if empty}<div class="mi-empty">Open or create a Mermaid .mmd file</div>{/if}
 		{#if error}<div class="mi-error" role="alert"><strong>Could not render Mermaid</strong><pre>{error}</pre></div>{/if}
-		<Canvas bind:this={canvas}><div class="mi-diagram-host" bind:this={host}></div></Canvas>
+		<Canvas bind:this={canvas} {transitionDuration}><div class="mi-diagram-host" bind:this={host}></div></Canvas>
 	</div>
+	<footer class="mi-footer">Click: inline <span aria-hidden="true">·</span> Right-click: focus <span aria-hidden="true">·</span> Drag: pan <span aria-hidden="true">·</span> Wheel: zoom <span aria-hidden="true">·</span> Esc: up</footer>
 </section>

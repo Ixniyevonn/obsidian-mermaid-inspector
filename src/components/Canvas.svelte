@@ -1,13 +1,22 @@
 <script lang="ts">
 import type { Snippet } from "svelte";
+import { fitCamera, interpolateCamera } from "../utils/camera";
 
-let { children }: { children: Snippet } = $props();
+let {
+	children,
+	transitionDuration = 320,
+}: { children: Snippet; transitionDuration?: number } = $props();
 let viewport: HTMLDivElement;
 let panX = $state(0),
 	panY = $state(0),
 	zoom = $state(1);
 let pointerId = $state<number | null>(null);
 let origin = { x: 0, y: 0, panX: 0, panY: 0 };
+let cameraFrame: number | null = null;
+function cancelCameraAnimation() {
+	if (cameraFrame !== null) cancelAnimationFrame(cameraFrame);
+	cameraFrame = null;
+}
 function down(event: PointerEvent) {
 	if (
 		event.button !== 1 &&
@@ -16,6 +25,7 @@ function down(event: PointerEvent) {
 	)
 		return;
 	event.preventDefault();
+	cancelCameraAnimation();
 	pointerId = event.pointerId;
 	origin = { x: event.clientX, y: event.clientY, panX, panY };
 	viewport.setPointerCapture(event.pointerId);
@@ -32,6 +42,7 @@ function up(event: PointerEvent) {
 }
 function wheel(event: WheelEvent) {
 	event.preventDefault();
+	cancelCameraAnimation();
 	const rect = viewport.getBoundingClientRect(),
 		x = event.clientX - rect.left,
 		y = event.clientY - rect.top;
@@ -43,26 +54,26 @@ function wheel(event: WheelEvent) {
 	panY = y - ((y - panY) * next) / zoom;
 	zoom = next;
 }
-export function fit(bounds?: DOMRect | SVGRect) {
-	const rect = viewport.getBoundingClientRect();
-	if (!bounds?.width || !bounds.height) {
-		panX = 0;
-		panY = 0;
-		zoom = 1;
+export function fit(bounds?: DOMRect | SVGRect, animate = true) {
+	const target = fitCamera(viewport.getBoundingClientRect(), bounds);
+	cancelCameraAnimation();
+	if (!animate || transitionDuration <= 0) {
+		({ panX, panY, zoom } = target);
 		return;
 	}
-	zoom = Math.min(
-		1.5,
-		Math.max(
-			0.15,
-			Math.min(
-				(rect.width - 48) / bounds.width,
-				(rect.height - 48) / bounds.height,
-			),
-		),
-	);
-	panX = rect.width / 2 - (bounds.x + bounds.width / 2) * zoom;
-	panY = rect.height / 2 - (bounds.y + bounds.height / 2) * zoom;
+	const start = performance.now();
+	const from = { panX, panY, zoom };
+	const frame = (now: number) => {
+		({ panX, panY, zoom } = interpolateCamera(
+			from,
+			target,
+			(now - start) / Math.max(1, transitionDuration),
+		));
+		if (now - start < transitionDuration)
+			cameraFrame = requestAnimationFrame(frame);
+		else cameraFrame = null;
+	};
+	cameraFrame = requestAnimationFrame(frame);
 }
 </script>
 <div class:dragging={pointerId !== null} class="mi-viewport" bind:this={viewport}

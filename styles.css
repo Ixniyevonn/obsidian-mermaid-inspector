@@ -40,3 +40,50 @@
 .mi-diagram-host .mi-empty-scope .label {
   font-weight: 400 !important;
 }
+.mi-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.mi-focus-path {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: thin;
+}
+.mi-breadcrumb {
+  flex: 0 0 auto;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mi-breadcrumb[aria-current="page"] {
+  color: var(--text-accent);
+  font-weight: var(--font-semibold);
+}
+.mi-breadcrumb-separator {
+  flex: 0 0 auto;
+  color: var(--text-faint);
+}
+.mi-header-actions {
+  flex: 0 0 auto;
+}
+.mi-header-actions button:hover {
+  background: var(--background-modifier-hover);
+}
+.mi-footer {
+  z-index: 2;
+  flex: none;
+  padding: 5px 12px;
+  border-top: 1px solid var(--background-modifier-border);
+  overflow: hidden;
+  color: var(--text-muted);
+  background: var(--background-secondary);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.4;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

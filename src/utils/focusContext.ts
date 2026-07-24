@@ -51,6 +51,38 @@ function renderedEdgeIsInside(
 		return null;
 	}
 }
+function closestRenderedEdge(
+	label: SVGGraphicsElement,
+	edges: readonly SVGPathElement[],
+): SVGPathElement | null {
+	const rect = label.getBoundingClientRect();
+	const center = {
+		x: rect.left + rect.width / 2,
+		y: rect.top + rect.height / 2,
+	};
+	let closest: SVGPathElement | null = null;
+	let closestDistance = Number.POSITIVE_INFINITY;
+	for (const edge of edges) {
+		try {
+			const length = edge.getTotalLength();
+			const matrix = edge.getScreenCTM();
+			if (!matrix || !Number.isFinite(length)) continue;
+			for (let index = 0; index <= 24; index += 1) {
+				const point = edge.getPointAtLength((length * index) / 24);
+				const x = matrix.a * point.x + matrix.c * point.y + matrix.e;
+				const y = matrix.b * point.x + matrix.d * point.y + matrix.f;
+				const distance = Math.hypot(x - center.x, y - center.y);
+				if (distance < closestDistance) {
+					closestDistance = distance;
+					closest = edge;
+				}
+			}
+		} catch {
+			// Ignore paths whose geometry is unavailable.
+		}
+	}
+	return closest;
+}
 export function groupBackgroundElements(
 	svg: SVGSVGElement,
 	focusedScopeId: string | undefined,
@@ -74,12 +106,17 @@ export function groupBackgroundElements(
 		(element) => element.getAttribute("data-cluster-id") === focusedScopeId,
 	);
 	const focusedRect = focusedElement?.getBoundingClientRect();
-	for (const edge of svg.querySelectorAll<SVGPathElement>("[data-edge-id]")) {
+	const edges = Array.from(
+		svg.querySelectorAll<SVGPathElement>("[data-edge-id]"),
+	);
+	const backgroundEdges = new Set<SVGPathElement>();
+	for (const edge of edges) {
 		const geometricResult = focusedRect
 			? renderedEdgeIsInside(edge, focusedRect)
 			: null;
 		if (geometricResult === false) {
 			background.push(edge);
+			backgroundEdges.add(edge);
 			continue;
 		}
 		if (geometricResult === true) continue;
@@ -92,8 +129,14 @@ export function groupBackgroundElements(
 		if (
 			!isInFocusedScope(source, focusedScopeId, scopePaths) ||
 			!isInFocusedScope(target, focusedScopeId, scopePaths)
-		)
+		) {
 			background.push(edge);
+			backgroundEdges.add(edge);
+		}
+	}
+	for (const label of svg.querySelectorAll<SVGGraphicsElement>(".edgeLabel")) {
+		const edge = closestRenderedEdge(label, edges);
+		if (edge && backgroundEdges.has(edge)) background.push(label);
 	}
 
 	const groups = new Map<Element, SVGGElement>();
