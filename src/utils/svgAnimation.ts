@@ -73,3 +73,47 @@ export function screenRectToLocalBounds(
 		height: Math.max(...ys) - y,
 	};
 }
+interface FrameLoopOptions {
+	now?: () => number;
+	requestFrame?: (callback: FrameRequestCallback) => number;
+	cancelFrame?: (handle: number) => void;
+}
+
+export async function runCancelableTransition(
+	duration: number,
+	signal: AbortSignal,
+	onFrame: (progress: number) => void,
+	options: FrameLoopOptions = {},
+): Promise<boolean> {
+	if (signal.aborted) return false;
+	const now = options.now ?? (() => performance.now());
+	const requestFrame = options.requestFrame ?? requestAnimationFrame;
+	const cancelFrame = options.cancelFrame ?? cancelAnimationFrame;
+	const start = now();
+	return new Promise<boolean>((resolve) => {
+		let handle = 0;
+		let settled = false;
+		const abort = () => {
+			if (settled) return;
+			settled = true;
+			cancelFrame(handle);
+			resolve(false);
+		};
+		const frame = (timestamp: number) => {
+			if (settled || signal.aborted) return;
+			const progress = Math.max(
+				0,
+				Math.min(1, (timestamp - start) / Math.max(1, duration)),
+			);
+			onFrame(progress);
+			if (progress < 1) handle = requestFrame(frame);
+			else {
+				settled = true;
+				signal.removeEventListener("abort", abort);
+				resolve(true);
+			}
+		};
+		signal.addEventListener("abort", abort, { once: true });
+		handle = requestFrame(frame);
+	});
+}

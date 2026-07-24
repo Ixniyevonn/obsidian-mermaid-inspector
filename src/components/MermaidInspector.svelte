@@ -6,6 +6,7 @@ import {
 	centerDelta,
 	screenDeltaToLocal,
 	screenRectToLocalBounds,
+	runCancelableTransition,
 	type VisualRects,
 } from "../utils/svgAnimation";
 import { groupBackgroundElements } from "../utils/focusContext";
@@ -24,6 +25,7 @@ let error = $state(""),
 	empty = $derived(isBlankMermaidSource(source)),
 	busy = $state(false),
 	revision = 0;
+let activeTransition: AbortController | null = null;
 const cache = new Map<string, string>();
 function ancestors(id: string): string[] {
 	const result: string[] = [];
@@ -55,6 +57,9 @@ async function build(): Promise<SVGSVGElement> {
 }
 async function render(animate: boolean, fit = false) {
 	const request = ++revision;
+	const old = currentSvg ? captureVisualRects(currentSvg) : null;
+	activeTransition?.abort();
+	activeTransition = null;
 	busy = true;
 	error = "";
 	try {
@@ -63,8 +68,7 @@ async function render(animate: boolean, fit = false) {
 			currentSvg = null;
 			return;
 		}
-		const old = currentSvg ? captureVisualRects(currentSvg) : null,
-			next = await build();
+		const next = await build();
 		if (request !== revision) return;
 		host.replaceChildren(next);
 		currentSvg = next;
@@ -73,7 +77,10 @@ async function render(animate: boolean, fit = false) {
 		groupBackgroundElements(next, focusPath.at(-1), scopePaths);
 		if (animate && old) {
 			await tick();
-			await animateFrom(next, old);
+			const controller = new AbortController();
+			activeTransition = controller;
+			await animateFrom(next, old, controller.signal);
+			if (activeTransition === controller) activeTransition = null;
 		}
 		if (fit) {
 			await tick();
@@ -86,7 +93,11 @@ async function render(animate: boolean, fit = false) {
 		if (request === revision) busy = false;
 	}
 }
-async function animateFrom(svg: SVGSVGElement, old: VisualRects): Promise<void> {
+async function animateFrom(
+	svg: SVGSVGElement,
+	old: VisualRects,
+	signal: AbortSignal,
+): Promise<void> {
 	const duration = Math.max(1, transitionDuration);
 	const after = captureVisualRects(svg);
 	const wrappers: Array<{ element: SVGGElement; x: number; y: number }> = [];
@@ -165,35 +176,34 @@ async function animateFrom(svg: SVGSVGElement, old: VisualRects): Promise<void> 
 		);
 	}
 
-	const start = performance.now();
-	await new Promise<void>((resolve) => {
-		function frame(now: number) {
-			const progress = Math.min(1, (now - start) / duration);
-			const eased = 1 - (1 - progress) ** 3;
-			for (const morph of rectMorphs) {
-				const lerp = (from: number, to: number) => from + (to - from) * eased;
-				morph.element.setAttribute("x", String(lerp(morph.from.x, morph.to.x)));
-				morph.element.setAttribute("y", String(lerp(morph.from.y, morph.to.y)));
-				morph.element.setAttribute(
-					"width",
-					String(lerp(morph.from.width, morph.to.width)),
-				);
-				morph.element.setAttribute(
-					"height",
-					String(lerp(morph.from.height, morph.to.height)),
-				);
-			}
-			for (const item of wrappers) {
-				item.element.setAttribute(
-					"transform",
-					`translate(${item.x * (1 - eased)} ${item.y * (1 - eased)})`,
-				);
-			}
-			if (progress < 1) requestAnimationFrame(frame);
-			else resolve();
+	const cancelAnimations = () => {
+		for (const animation of svg.getAnimations()) animation.cancel();
+	};
+	signal.addEventListener("abort", cancelAnimations, { once: true });
+	await runCancelableTransition(duration, signal, (progress) => {
+		const eased = 1 - (1 - progress) ** 3;
+		const lerp = (from: number, to: number) => from + (to - from) * eased;
+		for (const morph of rectMorphs) {
+			morph.element.setAttribute("x", String(lerp(morph.from.x, morph.to.x)));
+			morph.element.setAttribute("y", String(lerp(morph.from.y, morph.to.y)));
+			morph.element.setAttribute(
+				"width",
+				String(lerp(morph.from.width, morph.to.width)),
+			);
+			morph.element.setAttribute(
+				"height",
+				String(lerp(morph.from.height, morph.to.height)),
+			);
 		}
-		requestAnimationFrame(frame);
+		for (const item of wrappers) {
+			item.element.setAttribute(
+				"transform",
+				`translate(${item.x * (1 - eased)} ${item.y * (1 - eased)})`,
+			);
+		}
 	});
+	signal.removeEventListener("abort", cancelAnimations);
+	cancelAnimations();
 	for (const item of wrappers) {
 		const parent = item.element.parentNode;
 		if (!parent) continue;
@@ -219,7 +229,7 @@ function toggleInline(id: string): void {
 }
 function click(event: MouseEvent) {
 	const id = target(event);
-	if (!id || busy) return;
+	if (!id) return;
 	toggleInline(id);
 }
 function applyFocus(path: string[]): void {
@@ -230,12 +240,12 @@ function applyFocus(path: string[]): void {
 }
 function contextMenu(event: MouseEvent) {
 	const id = target(event);
-	if (!id || busy) return;
+	if (!id) return;
 	event.preventDefault();
 	applyFocus(ancestors(id));
 }
 function ascend() {
-	if (!focusPath.length || busy) return;
+	if (!focusPath.length) return;
 	applyFocus(focusPath.slice(0, -1));
 }
 $effect(() => {

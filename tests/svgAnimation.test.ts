@@ -1,5 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { centerDelta, screenDeltaToLocal } from "../src/utils/svgAnimation";
+import {
+	centerDelta,
+	runCancelableTransition,
+	screenDeltaToLocal,
+} from "../src/utils/svgAnimation";
 
 describe("SVG FLIP coordinate conversion", () => {
 	it("converts screen movement through the parent scale", () => {
@@ -27,5 +31,78 @@ describe("SVG FLIP coordinate conversion", () => {
 				{ left: 30, top: 50, width: 60, height: 20 },
 			),
 		).toEqual({ x: 0, y: -20 });
+	});
+});
+describe("cancelable SVG transitions", () => {
+	it("resolves immediately without applying another frame after cancellation", async () => {
+		const controller = new AbortController();
+		const frames: number[] = [];
+		const canceled: number[] = [];
+		let scheduled: FrameRequestCallback | undefined;
+		const transition = runCancelableTransition(
+			320,
+			controller.signal,
+			(progress) => frames.push(progress),
+			{
+				now: () => 100,
+				requestFrame: (callback) => {
+					scheduled = callback;
+					return 7;
+				},
+				cancelFrame: (handle) => canceled.push(handle),
+			},
+		);
+		expect(scheduled).toBeDefined();
+		controller.abort();
+		expect(await transition).toBe(false);
+		expect(canceled).toEqual([7]);
+		scheduled?.(200);
+		expect(frames).toEqual([]);
+	});
+
+	it("reports completion when the final frame is reached", async () => {
+		const controller = new AbortController();
+		const frames: number[] = [];
+		let scheduled: FrameRequestCallback | undefined;
+		const transition = runCancelableTransition(
+			200,
+			controller.signal,
+			(progress) => frames.push(progress),
+			{
+				now: () => 100,
+				requestFrame: (callback) => {
+					scheduled = callback;
+					return 1;
+				},
+				cancelFrame: () => {},
+			},
+		);
+		scheduled?.(300);
+		expect(await transition).toBe(true);
+		expect(frames).toEqual([1]);
+	});
+
+	it("clamps a stale queued frame timestamp instead of extrapolating negative sizes", async () => {
+		const controller = new AbortController();
+		const frames: number[] = [];
+		let scheduled: FrameRequestCallback | undefined;
+		const transition = runCancelableTransition(
+			200,
+			controller.signal,
+			(progress) => frames.push(progress),
+			{
+				now: () => 100,
+				requestFrame: (callback) => {
+					scheduled = callback;
+					return 1;
+				},
+				cancelFrame: () => {},
+			},
+		);
+		scheduled?.(90);
+		expect(frames).toEqual([0]);
+		scheduled?.(300);
+		expect(await transition).toBe(true);
+		expect(frames).toEqual([0, 1]);
 	});
 });
