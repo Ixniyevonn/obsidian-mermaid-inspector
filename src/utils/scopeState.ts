@@ -35,3 +35,12 @@ export function collapseScope(
 			: [...state.focusPath];
 	return { expanded, focusPath };
 }
+export function changeFocus(
+	state: ScopeNavigationState,
+	focusPath: readonly string[],
+): ScopeNavigationState {
+	return {
+		expanded: new Set([...state.expanded, ...focusPath]),
+		focusPath: [...focusPath],
+	};
+}

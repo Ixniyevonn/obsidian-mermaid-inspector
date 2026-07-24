@@ -46,3 +46,30 @@ export function centerDelta(before: VisualRect, after: VisualRect) {
 		y: before.top + before.height / 2 - (after.top + after.height / 2),
 	};
 }
+export function screenRectToLocalBounds(
+	rect: VisualRect,
+	matrix: Pick<DOMMatrix, "a" | "b" | "c" | "d" | "e" | "f">,
+): { x: number; y: number; width: number; height: number } | null {
+	const determinant = matrix.a * matrix.d - matrix.b * matrix.c;
+	if (Math.abs(determinant) < 1e-8) return null;
+	const convert = (x: number, y: number) => ({
+		x: (matrix.d * (x - matrix.e) - matrix.c * (y - matrix.f)) / determinant,
+		y: (-matrix.b * (x - matrix.e) + matrix.a * (y - matrix.f)) / determinant,
+	});
+	const points = [
+		convert(rect.left, rect.top),
+		convert(rect.left + rect.width, rect.top),
+		convert(rect.left, rect.top + rect.height),
+		convert(rect.left + rect.width, rect.top + rect.height),
+	];
+	const xs = points.map((point) => point.x);
+	const ys = points.map((point) => point.y);
+	const x = Math.min(...xs);
+	const y = Math.min(...ys);
+	return {
+		x,
+		y,
+		width: Math.max(...xs) - x,
+		height: Math.max(...ys) - y,
+	};
+}

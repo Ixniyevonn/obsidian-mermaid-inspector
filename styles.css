@@ -16,7 +16,7 @@
 }
 .mi-diagram-host .mi-collapsed-scope text,
 .mi-diagram-host .mi-collapsed-scope .label {
-  font-weight: 700 !important;
+  font-weight: 400 !important;
   fill: var(--text-normal) !important;
 }
 .mi-diagram-host .mi-collapsed-scope:hover rect,
@@ -27,4 +27,16 @@
 .mi-diagram-host .mi-context-layer {
   opacity: 0.24;
   filter: blur(0.7px);
+}
+.mi-diagram-host .mi-empty-scope rect,
+.mi-diagram-host .mi-empty-scope path,
+.mi-diagram-host .mi-empty-scope polygon {
+  fill: var(--background-secondary) !important;
+  stroke: var(--interactive-accent) !important;
+  stroke-width: 2px !important;
+  stroke-dasharray: none !important;
+}
+.mi-diagram-host .mi-empty-scope text,
+.mi-diagram-host .mi-empty-scope .label {
+  font-weight: 400 !important;
 }

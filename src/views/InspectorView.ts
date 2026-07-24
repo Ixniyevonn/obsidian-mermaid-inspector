@@ -1,10 +1,18 @@
-import { TextFileView } from "obsidian";
+import { TextFileView, type WorkspaceLeaf } from "obsidian";
 import { mount, unmount } from "svelte";
 import MermaidInspector from "../components/MermaidInspector.svelte";
+import type MermaidInspectorPlugin from "../main";
 export const VIEW_TYPE = "mermaid-inspector-view";
 export class InspectorView extends TextFileView {
 	private component: ReturnType<typeof mount> | null = null;
 	private source = "";
+
+	constructor(
+		leaf: WorkspaceLeaf,
+		private readonly plugin: MermaidInspectorPlugin,
+	) {
+		super(leaf);
+	}
 	getViewType(): string {
 		return VIEW_TYPE;
 	}
@@ -36,13 +44,20 @@ export class InspectorView extends TextFileView {
 		if (this.component) await unmount(this.component);
 		this.component = null;
 	}
+	refreshSettings(): void {
+		this.mountInspector();
+	}
+
 	private mountInspector(): void {
 		if (!this.contentEl.isConnected) return;
 		if (this.component) void unmount(this.component);
 		this.contentEl.empty();
 		this.component = mount(MermaidInspector, {
 			target: this.contentEl,
-			props: { source: this.source },
+			props: {
+				source: this.source,
+				transitionDuration: this.plugin.settings.transitionDuration,
+			},
 		});
 	}
 }

@@ -1,12 +1,21 @@
 import { Notice, normalizePath, Plugin, TFolder } from "obsidian";
 import "../styles.css";
+import {
+	DEFAULT_SETTINGS,
+	type MermaidInspectorSettings,
+	MermaidInspectorSettingTab,
+} from "./settings";
 import { TemplatePickerModal } from "./TemplatePickerModal";
 import { MERMAID_TEMPLATES, type MermaidTemplate } from "./templates";
 import { InspectorView, VIEW_TYPE } from "./views/InspectorView";
 
 export default class MermaidInspectorPlugin extends Plugin {
+	settings: MermaidInspectorSettings = DEFAULT_SETTINGS;
+
 	async onload() {
-		this.registerView(VIEW_TYPE, (leaf) => new InspectorView(leaf));
+		await this.loadSettings();
+		this.registerView(VIEW_TYPE, (leaf) => new InspectorView(leaf, this));
+		this.addSettingTab(new MermaidInspectorSettingTab(this.app, this));
 		this.registerExtensions(["mmd"], VIEW_TYPE);
 		this.addRibbonIcon("git-branch", "Mermaid Inspector", () => {
 			this.activateView();
@@ -46,6 +55,19 @@ export default class MermaidInspectorPlugin extends Plugin {
 		workspace.revealLeaf(leaf);
 	}
 
+	private async loadSettings(): Promise<void> {
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+	}
+
+	async saveSettings(): Promise<void> {
+		await this.saveData(this.settings);
+	}
+
+	refreshInspectorViews(): void {
+		for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
+			if (leaf.view instanceof InspectorView) leaf.view.refreshSettings();
+		}
+	}
 	private openTemplatePicker(folder: TFolder): void {
 		new TemplatePickerModal(
 			this.app,

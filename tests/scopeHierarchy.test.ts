@@ -4,7 +4,7 @@ import {
 	getViewSourceWithMeta,
 	type ScopeInfo,
 } from "../src/utils/mermaidView";
-import { collapseScope } from "../src/utils/scopeState";
+import { changeFocus, collapseScope } from "../src/utils/scopeState";
 
 const scopes: ScopeInfo[] = [
 	{ id: "Outer", label: "Outer", parentId: null, depth: 0 },
@@ -51,5 +51,30 @@ describe("recursive scope collapse", () => {
 		);
 		expect([...result.expanded]).toEqual(["Outer"]);
 		expect(result.focusPath).toEqual(["Outer"]);
+	});
+});
+describe("focus navigation", () => {
+	it("keeps deeply nested children expanded when focus moves to a parent", () => {
+		const result = changeFocus(
+			{
+				expanded: new Set(["Outer", "Inner", "Deep"]),
+				focusPath: ["Outer", "Inner", "Deep"],
+			},
+			["Outer"],
+		);
+		expect([...result.expanded]).toEqual(["Outer", "Inner", "Deep"]);
+		expect(result.focusPath).toEqual(["Outer"]);
+	});
+
+	it("keeps expanded scopes when focus returns to the whole diagram", () => {
+		const result = changeFocus(
+			{
+				expanded: new Set(["Outer", "Inner"]),
+				focusPath: ["Outer", "Inner"],
+			},
+			[],
+		);
+		expect([...result.expanded]).toEqual(["Outer", "Inner"]);
+		expect(result.focusPath).toEqual([]);
 	});
 });

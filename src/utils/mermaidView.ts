@@ -67,6 +67,7 @@ export interface ViewSourceMeta {
 	edgeKeys: string[];
 	labelToId: Record<string, string>;
 	collapsedScopeIds: string[];
+	emptyScopeIds: string[];
 	scopePathByElementId: Record<string, string[]>;
 	scopes: ScopeInfo[];
 }
@@ -102,6 +103,11 @@ export function getViewSourceWithMeta(
 	}));
 	const subgraphsById = new Map(
 		originalSubgraphs.map((scope) => [scope.id, scope]),
+	);
+	const emptyScopeIdSet = new Set(
+		originalSubgraphs
+			.filter((scope) => scope.nodes.length === 0)
+			.map((scope) => scope.id),
 	);
 	const parent = new Map<string, string>();
 	for (const scope of originalSubgraphs) {
@@ -180,12 +186,18 @@ export function getViewSourceWithMeta(
 			diagram.removeNode(scope.id, { reconnect: false });
 		}
 	}
-	const collapsedScopeIds = originalSubgraphs
+	const visibleProxyScopeIds = originalSubgraphs
 		.filter(
 			(scope) => isVisibleScope(scope.id) && !isEffectivelyExpanded(scope.id),
 		)
 		.map((scope) => scope.id);
-	for (const id of collapsedScopeIds) {
+	const emptyScopeIds = visibleProxyScopeIds.filter((id) =>
+		emptyScopeIdSet.has(id),
+	);
+	const collapsedScopeIds = visibleProxyScopeIds.filter(
+		(id) => !emptyScopeIdSet.has(id),
+	);
+	for (const id of visibleProxyScopeIds) {
 		const scope = subgraphsById.get(id);
 		if (!scope) continue;
 		const label = labelOf(scope.title, scope.id);
@@ -248,6 +260,7 @@ export function getViewSourceWithMeta(
 		edgeKeys,
 		labelToId,
 		collapsedScopeIds,
+		emptyScopeIds,
 		scopePathByElementId,
 		scopes,
 	};

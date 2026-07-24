@@ -5,14 +5,15 @@ import {
 	captureVisualRects,
 	centerDelta,
 	screenDeltaToLocal,
+	screenRectToLocalBounds,
 	type VisualRects,
 } from "../utils/svgAnimation";
 import { groupBackgroundElements } from "../utils/focusContext";
-import { collapseScope } from "../utils/scopeState";
+import { changeFocus, collapseScope } from "../utils/scopeState";
 import { getViewSourceWithMeta, isBlankMermaidSource, type ScopeInfo } from "../utils/mermaidView";
 import Canvas from "./Canvas.svelte";
 
-let { source = "" }: { source: string } = $props();
+let { source = "", transitionDuration = 320 }: { source: string; transitionDuration: number } = $props();
 let host: HTMLDivElement, canvas: Canvas;
 let currentSvg: SVGSVGElement | null = null,
 	expanded = new Set<string>();
@@ -49,6 +50,7 @@ async function build(): Promise<SVGSVGElement> {
 		labelToId: meta.labelToId,
 		edgeKeys: meta.edgeKeys,
 		collapsedScopeIds: meta.collapsedScopeIds,
+		emptyScopeIds: meta.emptyScopeIds,
 	});
 }
 async function render(animate: boolean, fit = false) {
@@ -85,8 +87,14 @@ async function render(animate: boolean, fit = false) {
 	}
 }
 async function animateFrom(svg: SVGSVGElement, old: VisualRects): Promise<void> {
+	const duration = Math.max(1, transitionDuration);
 	const after = captureVisualRects(svg);
 	const wrappers: Array<{ element: SVGGElement; x: number; y: number }> = [];
+	const rectMorphs: Array<{
+		element: SVGRectElement;
+		from: { x: number; y: number; width: number; height: number };
+		to: { x: number; y: number; width: number; height: number };
+	}> = [];
 	for (const element of svg.querySelectorAll<SVGGElement>(
 		"[data-node-id], [data-cluster-id]",
 	)) {
@@ -98,10 +106,35 @@ async function animateFrom(svg: SVGSVGElement, old: VisualRects): Promise<void> 
 		const finalRect = after[id];
 		if (!before || !finalRect) {
 			element.animate([{ opacity: 0 }, { opacity: 1 }], {
-				duration: 280,
+				duration: duration * 0.875,
 				easing: "ease-out",
 			});
 			continue;
+		}
+		if (element.hasAttribute("data-cluster-id")) {
+			const outline = element.querySelector<SVGRectElement>("rect");
+			const matrix = outline?.getScreenCTM();
+			if (outline && matrix) {
+				const from = screenRectToLocalBounds(before, matrix);
+				const to = {
+					x: Number(outline.getAttribute("x")),
+					y: Number(outline.getAttribute("y")),
+					width: Number(outline.getAttribute("width")),
+					height: Number(outline.getAttribute("height")),
+				};
+				if (from && Object.values(to).every(Number.isFinite)) {
+					outline.setAttribute("x", String(from.x));
+					outline.setAttribute("y", String(from.y));
+					outline.setAttribute("width", String(from.width));
+					outline.setAttribute("height", String(from.height));
+					rectMorphs.push({ element: outline, from, to });
+					element.querySelector(".label, .cluster-label, text")?.animate(
+						[{ opacity: 0 }, { opacity: 1 }],
+						{ duration, easing: "ease-out" },
+					);
+					continue;
+				}
+			}
 		}
 		const parent = element.parentElement as SVGGraphicsElement | null;
 		const matrix = parent?.getScreenCTM();
@@ -128,15 +161,28 @@ async function animateFrom(svg: SVGSVGElement, old: VisualRects): Promise<void> 
 				{ opacity: 0, strokeDasharray: `${length} ${length}`, strokeDashoffset: length },
 				{ opacity: 1, strokeDasharray: `${length} ${length}`, strokeDashoffset: 0 },
 			],
-			{ duration: 320, easing: "cubic-bezier(.22,1,.36,1)" },
+			{ duration, easing: "cubic-bezier(.22,1,.36,1)" },
 		);
 	}
 
 	const start = performance.now();
 	await new Promise<void>((resolve) => {
 		function frame(now: number) {
-			const progress = Math.min(1, (now - start) / 320);
+			const progress = Math.min(1, (now - start) / duration);
 			const eased = 1 - (1 - progress) ** 3;
+			for (const morph of rectMorphs) {
+				const lerp = (from: number, to: number) => from + (to - from) * eased;
+				morph.element.setAttribute("x", String(lerp(morph.from.x, morph.to.x)));
+				morph.element.setAttribute("y", String(lerp(morph.from.y, morph.to.y)));
+				morph.element.setAttribute(
+					"width",
+					String(lerp(morph.from.width, morph.to.width)),
+				);
+				morph.element.setAttribute(
+					"height",
+					String(lerp(morph.from.height, morph.to.height)),
+				);
+			}
 			for (const item of wrappers) {
 				item.element.setAttribute(
 					"transform",
@@ -161,17 +207,7 @@ const target = (event: Event) =>
 	(event.target as Element)
 		.closest("[data-cluster-id]")
 		?.getAttribute("data-cluster-id") ?? null;
-function click(event: MouseEvent) {
-	const id = target(event);
-	if (!id || busy) return;
-	focusPath = ancestors(id);
-	expanded = new Set(focusPath);
-	void render(true);
-}
-function contextMenu(event: MouseEvent) {
-	const id = target(event);
-	if (!id || busy) return;
-	event.preventDefault();
+function toggleInline(id: string): void {
 	if (expanded.has(id)) {
 		const collapsed = collapseScope({ expanded, focusPath }, scopes, id);
 		expanded = collapsed.expanded;
@@ -181,11 +217,26 @@ function contextMenu(event: MouseEvent) {
 	}
 	void render(true);
 }
+function click(event: MouseEvent) {
+	const id = target(event);
+	if (!id || busy) return;
+	toggleInline(id);
+}
+function applyFocus(path: string[]): void {
+	const next = changeFocus({ expanded, focusPath }, path);
+	expanded = next.expanded;
+	focusPath = next.focusPath;
+	void render(true);
+}
+function contextMenu(event: MouseEvent) {
+	const id = target(event);
+	if (!id || busy) return;
+	event.preventDefault();
+	applyFocus(ancestors(id));
+}
 function ascend() {
 	if (!focusPath.length || busy) return;
-	focusPath = focusPath.slice(0, -1);
-	expanded = new Set([...expanded].filter((id) => focusPath.includes(id)));
-	void render(true);
+	applyFocus(focusPath.slice(0, -1));
 }
 $effect(() => {
 	source;
@@ -199,10 +250,10 @@ $effect(() => {
 <section class="mi-root" aria-busy={busy}>
 	<header class="mi-header">
 		<nav aria-label="Focused Mermaid scope">
-			<button class="mi-breadcrumb" onclick={() => { focusPath = []; expanded = new Set(); void render(true); }}>Diagram</button>
-			{#each focusPath as id}<span aria-hidden="true">&gt;</span><button class="mi-breadcrumb" onclick={() => { focusPath = focusPath.slice(0, focusPath.indexOf(id) + 1); expanded = new Set(focusPath); void render(true); }}>{scopes.find((scope) => scope.id === id)?.label ?? id}</button>{/each}
+			<button class="mi-breadcrumb" onclick={() => applyFocus([])}>Diagram</button>
+			{#each focusPath as id}<span aria-hidden="true">&gt;</span><button class="mi-breadcrumb" onclick={() => applyFocus(focusPath.slice(0, focusPath.indexOf(id) + 1))}>{scopes.find((scope) => scope.id === id)?.label ?? id}</button>{/each}
 		</nav>
-		<div class="mi-actions"><span>Click: focus | Right-click: inline | Drag: pan | Wheel: zoom | Esc: up</span><button onclick={() => canvas.fit(currentSvg?.viewBox?.baseVal)}>Fit</button></div>
+		<div class="mi-actions"><span>Click: inline | Right-click: focus | Drag: pan | Wheel: zoom | Esc: up</span><button onclick={() => canvas.fit(currentSvg?.viewBox?.baseVal)}>Fit</button></div>
 	</header>
 	<div class="mi-canvas">
 		{#if empty}<div class="mi-empty">Open or create a Mermaid .mmd file</div>{/if}

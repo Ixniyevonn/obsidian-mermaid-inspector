@@ -12,6 +12,45 @@ export function isInFocusedScope(
 	);
 }
 
+export interface ScreenPoint {
+	x: number;
+	y: number;
+}
+
+export function edgeEndpointsInsideRect(
+	start: ScreenPoint,
+	end: ScreenPoint,
+	rect: { left: number; top: number; right: number; bottom: number },
+): boolean {
+	const contains = (point: ScreenPoint) =>
+		point.x >= rect.left - 1 &&
+		point.x <= rect.right + 1 &&
+		point.y >= rect.top - 1 &&
+		point.y <= rect.bottom + 1;
+	return contains(start) && contains(end);
+}
+
+function renderedEdgeIsInside(
+	edge: SVGPathElement,
+	focusedRect: DOMRect,
+): boolean | null {
+	try {
+		const length = edge.getTotalLength();
+		const matrix = edge.getScreenCTM();
+		if (!matrix || !Number.isFinite(length)) return null;
+		const transform = (point: DOMPoint): ScreenPoint => ({
+			x: matrix.a * point.x + matrix.c * point.y + matrix.e,
+			y: matrix.b * point.x + matrix.d * point.y + matrix.f,
+		});
+		return edgeEndpointsInsideRect(
+			transform(edge.getPointAtLength(0)),
+			transform(edge.getPointAtLength(length)),
+			focusedRect,
+		);
+	} catch {
+		return null;
+	}
+}
 export function groupBackgroundElements(
 	svg: SVGSVGElement,
 	focusedScopeId: string | undefined,
@@ -29,7 +68,21 @@ export function groupBackgroundElements(
 			background.push(element);
 		}
 	}
+	const focusedElement = Array.from(
+		svg.querySelectorAll<SVGGraphicsElement>("[data-cluster-id]"),
+	).find(
+		(element) => element.getAttribute("data-cluster-id") === focusedScopeId,
+	);
+	const focusedRect = focusedElement?.getBoundingClientRect();
 	for (const edge of svg.querySelectorAll<SVGPathElement>("[data-edge-id]")) {
+		const geometricResult = focusedRect
+			? renderedEdgeIsInside(edge, focusedRect)
+			: null;
+		if (geometricResult === false) {
+			background.push(edge);
+			continue;
+		}
+		if (geometricResult === true) continue;
 		const id = edge.getAttribute("data-edge-id");
 		if (!id) continue;
 		const separator = id.indexOf("--");
@@ -39,9 +92,8 @@ export function groupBackgroundElements(
 		if (
 			!isInFocusedScope(source, focusedScopeId, scopePaths) ||
 			!isInFocusedScope(target, focusedScopeId, scopePaths)
-		) {
+		)
 			background.push(edge);
-		}
 	}
 
 	const groups = new Map<Element, SVGGElement>();

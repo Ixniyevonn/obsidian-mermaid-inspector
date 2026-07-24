@@ -15,6 +15,7 @@ export interface TagMetadata {
 	labelToId: Record<string, string>;
 	edgeKeys?: string[];
 	collapsedScopeIds?: string[];
+	emptyScopeIds?: string[];
 }
 
 export const MERMAID_THEME_VARIABLES = {
@@ -134,10 +135,14 @@ export function postProcessAndTag(
 		if (id) cluster.setAttribute("data-cluster-id", id);
 	}
 	const collapsedScopes = new Set(config.collapsedScopeIds ?? []);
+	const emptyScopes = new Set(config.emptyScopeIds ?? []);
 	for (const node of svg.querySelectorAll("g.node, g.statediagram-state")) {
 		const id = logicalId(node, config.labelToId);
 		if (!id) continue;
-		if (collapsedScopes.has(id)) {
+		if (emptyScopes.has(id)) {
+			node.setAttribute("data-node-id", id);
+			node.classList.add("mi-empty-scope");
+		} else if (collapsedScopes.has(id)) {
 			node.setAttribute("data-cluster-id", id);
 			node.classList.add("mi-collapsed-scope");
 		} else node.setAttribute("data-node-id", id);
