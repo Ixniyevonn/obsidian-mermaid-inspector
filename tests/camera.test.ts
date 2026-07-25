@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { fitCamera, interpolateCamera } from "../src/utils/camera";
+import { fitCamera, interpolateCamera } from "../src/diagram/camera";
 
 describe("diagram camera", () => {
 	it("centers and fits bounds with viewport padding", () => {

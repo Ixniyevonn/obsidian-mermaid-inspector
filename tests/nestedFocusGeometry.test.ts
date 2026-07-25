@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { edgeEndpointsInsideRect } from "../src/utils/focusContext";
-import { screenRectToLocalBounds } from "../src/utils/svgAnimation";
+import { edgeEndpointsInsideRect } from "../src/diagram/focus";
+import { screenRectToLocalBounds } from "../src/diagram/transition";
 
 describe("nested focus edge geometry", () => {
 	const focused = { left: 100, top: 100, right: 500, bottom: 400 };

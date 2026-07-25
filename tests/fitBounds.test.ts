@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { JSDOM } from "jsdom";
-import { focusedFitBounds } from "../src/utils/fitBounds";
+import { focusedFitBounds } from "../src/diagram/fitBounds";
 
 function diagram(): SVGSVGElement {
 	const document = new JSDOM(`

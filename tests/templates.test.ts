@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { Flowchart } from "mermaid-ast";
-import { availableFileName, MERMAID_TEMPLATES } from "../src/templates";
+import { firstAvailableFileName, MERMAID_TEMPLATES } from "../src/templates";
 
 describe("Mermaid templates", () => {
 	it("has unique ids and filenames", () => {
@@ -21,15 +21,19 @@ describe("Mermaid templates", () => {
 	}
 });
 
-describe("availableFileName", () => {
-	it("keeps an unused filename", () => {
-		expect(availableFileName("Nested.mmd", () => false)).toBe("Nested.mmd");
+describe("firstAvailableFileName", () => {
+	it("keeps an unused filename", async () => {
+		expect(await firstAvailableFileName("Nested.mmd", async () => false)).toBe(
+			"Nested.mmd",
+		);
 	});
 
-	it("adds the first available numeric suffix", () => {
+	it("adds the first available numeric suffix", async () => {
 		const used = new Set(["Nested.mmd", "Nested 1.mmd", "Nested 2.mmd"]);
-		expect(availableFileName("Nested.mmd", (name) => used.has(name))).toBe(
-			"Nested 3.mmd",
-		);
+		expect(
+			await firstAvailableFileName("Nested.mmd", async (name) =>
+				used.has(name),
+			),
+		).toBe("Nested 3.mmd");
 	});
 });

@@ -3,7 +3,7 @@ import {
 	centerDelta,
 	runCancelableTransition,
 	screenDeltaToLocal,
-} from "../src/utils/svgAnimation";
+} from "../src/diagram/transition";
 
 describe("SVG FLIP coordinate conversion", () => {
 	it("converts screen movement through the parent scale", () => {

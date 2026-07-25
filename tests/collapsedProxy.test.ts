@@ -1,14 +1,18 @@
 import { describe, expect, it } from "bun:test";
 import { JSDOM } from "jsdom";
-import { postProcessAndTag } from "../src/utils/mermaidRender";
-import { FULL_MERMAID, getViewSourceWithMeta } from "../src/utils/mermaidView";
+import { getViewSourceWithMeta } from "../src/diagram/model";
+import { postProcessAndTag } from "../src/diagram/render";
+import { ORDER_FLOW_SOURCE } from "./fixtures/orderFlow";
 
 describe("collapsed scope proxies", () => {
 	it("reports only visible collapsed scopes", () => {
-		const collapsed = getViewSourceWithMeta(new Set(), FULL_MERMAID);
+		const collapsed = getViewSourceWithMeta(new Set(), ORDER_FLOW_SOURCE);
 		expect(collapsed.collapsedScopeIds).toEqual(["Outer"]);
 
-		const outerOpen = getViewSourceWithMeta(new Set(["Outer"]), FULL_MERMAID);
+		const outerOpen = getViewSourceWithMeta(
+			new Set(["Outer"]),
+			ORDER_FLOW_SOURCE,
+		);
 		expect(outerOpen.collapsedScopeIds).toEqual(["Inner"]);
 	});
 

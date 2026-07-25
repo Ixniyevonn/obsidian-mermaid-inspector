@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { JSDOM } from "jsdom";
-import { applyIntrinsicSvgSize } from "../src/utils/mermaidRender";
+import { applyIntrinsicSvgSize } from "../src/diagram/render";
 
 describe("vector-preserving SVG sizing", () => {
 	it("uses viewBox dimensions as the layout size", () => {

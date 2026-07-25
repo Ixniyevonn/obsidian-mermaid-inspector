@@ -3,7 +3,7 @@ import { JSDOM } from "jsdom";
 import {
 	groupBackgroundElements,
 	isInFocusedScope,
-} from "../src/utils/focusContext";
+} from "../src/diagram/focus";
 
 const paths = {
 	TopNode: [],

@@ -200,16 +200,18 @@ export const MERMAID_TEMPLATES: readonly MermaidTemplate[] = [
 `,
 	},
 ];
-
-export function availableFileName(
+export async function firstAvailableFileName(
 	baseName: string,
-	exists: (candidate: string) => boolean,
-): string {
+	exists: (candidate: string) => Promise<boolean>,
+): Promise<string> {
 	const dot = baseName.lastIndexOf(".");
 	const stem = dot > 0 ? baseName.slice(0, dot) : baseName;
 	const extension = dot > 0 ? baseName.slice(dot) : "";
-	if (!exists(baseName)) return baseName;
-	let index = 1;
-	while (exists(`${stem} ${index}${extension}`)) index += 1;
-	return `${stem} ${index}${extension}`;
+	let index = 0;
+	while (true) {
+		const suffix = index === 0 ? "" : ` ${index}`;
+		const candidate = `${stem}${suffix}${extension}`;
+		if (!(await exists(candidate))) return candidate;
+		index += 1;
+	}
 }

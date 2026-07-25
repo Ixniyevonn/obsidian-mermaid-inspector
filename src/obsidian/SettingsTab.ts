@@ -1,11 +1,5 @@
 import { type App, PluginSettingTab, Setting } from "obsidian";
-import type MermaidInspectorPlugin from "./main";
-
-export {
-	DEFAULT_SETTINGS,
-	type MermaidInspectorSettings,
-} from "./settingsData";
-
+import type MermaidInspectorPlugin from "../main";
 export class MermaidInspectorSettingTab extends PluginSettingTab {
 	constructor(
 		app: App,

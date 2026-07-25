@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
 	isOnlyMermaidEmbed,
 	mermaidEmbedLinks,
-} from "../src/utils/markdownEmbed";
+} from "../src/obsidian/markdownEmbed";
 
 describe("Markdown Mermaid embeds", () => {
 	it("extracts embeds with aliases and subpaths", () => {

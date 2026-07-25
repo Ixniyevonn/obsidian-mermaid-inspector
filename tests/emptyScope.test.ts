@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { JSDOM } from "jsdom";
-import { postProcessAndTag } from "../src/utils/mermaidRender";
-import { getViewSourceWithMeta } from "../src/utils/mermaidView";
+import { getViewSourceWithMeta } from "../src/diagram/model";
+import { postProcessAndTag } from "../src/diagram/render";
 
 const source = `flowchart TB
   subgraph Empty["Empty Scope"]

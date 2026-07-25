@@ -1,4 +1,4 @@
-import type { InspectorState } from "./utils/inspectorState";
+import type { InspectorState } from "./diagram/state";
 
 export interface MermaidInspectorSettings {
 	transitionDuration: number;

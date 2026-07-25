@@ -1,16 +1,5 @@
 import mermaid from "mermaid";
 
-export interface Rect {
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-}
-export interface Positions {
-	clusters: Record<string, Rect>;
-	nodes: Record<string, Rect>;
-	edges: Record<string, string>;
-}
 export interface TagMetadata {
 	labelToId: Record<string, string>;
 	edgeKeys?: string[];
@@ -30,7 +19,7 @@ export const MERMAID_THEME_VARIABLES = {
 let initialized = false;
 let renderSequence = 0;
 
-export function ensureMermaidInitialized(): void {
+function ensureMermaidInitialized(): void {
 	if (initialized) return;
 	mermaid.initialize({
 		startOnLoad: false,
@@ -120,24 +109,20 @@ function center(element: Element): [number, number] | null {
 
 export function postProcessAndTag(
 	svgString: string,
-	metadata: TagMetadata | string[] = { labelToId: {} },
+	metadata: TagMetadata,
 ): SVGSVGElement {
 	const wrapper = document.createElement("div");
 	wrapper.innerHTML = svgString.trim();
 	const svg = wrapper.querySelector("svg") as SVGSVGElement | null;
 	if (!svg) throw new Error("Mermaid returned no SVG element");
-	const config: TagMetadata = Array.isArray(metadata)
-		? { labelToId: {}, edgeKeys: metadata }
-		: metadata;
-
 	for (const cluster of svg.querySelectorAll("g.cluster")) {
-		const id = logicalId(cluster, config.labelToId);
+		const id = logicalId(cluster, metadata.labelToId);
 		if (id) cluster.setAttribute("data-cluster-id", id);
 	}
-	const collapsedScopes = new Set(config.collapsedScopeIds ?? []);
-	const emptyScopes = new Set(config.emptyScopeIds ?? []);
+	const collapsedScopes = new Set(metadata.collapsedScopeIds ?? []);
+	const emptyScopes = new Set(metadata.emptyScopeIds ?? []);
 	for (const node of svg.querySelectorAll("g.node, g.statediagram-state")) {
-		const id = logicalId(node, config.labelToId);
+		const id = logicalId(node, metadata.labelToId);
 		if (!id) continue;
 		if (emptyScopes.has(id)) {
 			node.setAttribute("data-node-id", id);
@@ -149,7 +134,7 @@ export function postProcessAndTag(
 	}
 
 	const paths = edgePaths(svg);
-	const keys = config.edgeKeys ?? [];
+	const keys = metadata.edgeKeys ?? [];
 	const anchors = new Map<string, [number, number]>();
 	for (const element of svg.querySelectorAll(
 		"[data-node-id], [data-cluster-id]",
@@ -190,16 +175,6 @@ export function postProcessAndTag(
 			remaining.delete(best);
 		}
 	}
-	if (!keys.length) {
-		const labels = Array.from(svg.querySelectorAll(".edgeLabel"));
-		paths.forEach((path, index) => {
-			const label = labels[index]?.textContent?.trim();
-			if (label) path.setAttribute("data-edge-id", label);
-		});
-		labels.forEach((label) => {
-			label.remove();
-		});
-	}
 	svg.removeAttribute("style");
 	applyIntrinsicSvgSize(svg);
 	return svg;
@@ -223,59 +198,4 @@ export function applyIntrinsicSvgSize(svg: SVGSVGElement): void {
 		svg.removeAttribute("height");
 	}
 	svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
-}
-export function extractPositions(svg: SVGSVGElement): Positions {
-	const result: Positions = { clusters: {}, nodes: {}, edges: {} };
-	for (const element of svg.querySelectorAll<SVGGElement>(
-		"[data-cluster-id]",
-	)) {
-		const id = element.dataset.clusterId;
-		if (!id) continue;
-		const rect = element.querySelector("rect");
-		result.clusters[id] = rect
-			? {
-					x: Number(rect.getAttribute("x")),
-					y: Number(rect.getAttribute("y")),
-					width: Number(rect.getAttribute("width")),
-					height: Number(rect.getAttribute("height")),
-				}
-			: element.getBBox();
-	}
-	for (const element of svg.querySelectorAll<SVGGElement>("[data-node-id]")) {
-		const id = element.dataset.nodeId;
-		if (id) result.nodes[id] = element.getBBox();
-	}
-	for (const path of svg.querySelectorAll<SVGPathElement>("[data-edge-id]")) {
-		const id = path.dataset.edgeId;
-		const d = path.getAttribute("d");
-		if (id && d) result.edges[id] = d;
-	}
-	return result;
-}
-
-export function interpolatePathD(from: string, to: string, t: number): string {
-	const pattern = /-?\d*\.?\d+(?:e[-+]?\d+)?/gi;
-	const fromNumbers = from.match(pattern)?.map(Number) ?? [];
-	const toNumbers = to.match(pattern)?.map(Number) ?? [];
-	const commands = (value: string) => value.match(/[A-Za-z]/g)?.join("") ?? "";
-	if (
-		fromNumbers.length !== toNumbers.length ||
-		commands(from) !== commands(to)
-	)
-		return to;
-	let index = 0;
-	return to.replace(pattern, () =>
-		String(
-			Number(
-				(
-					fromNumbers[index] +
-					(toNumbers[index] - fromNumbers[index++]) * t
-				).toFixed(3),
-			),
-		),
-	);
-}
-
-export function ease(t: number): number {
-	return 1 - (1 - t) ** 3;
 }

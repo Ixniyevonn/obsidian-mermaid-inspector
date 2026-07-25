@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { MERMAID_THEME_VARIABLES } from "../src/utils/mermaidRender";
-import { isBlankMermaidSource } from "../src/utils/mermaidView";
+import { isBlankMermaidSource } from "../src/diagram/model";
+import { MERMAID_THEME_VARIABLES } from "../src/diagram/render";
 
 describe("Obsidian lifecycle regressions", () => {
 	it("recognizes the temporary empty TextFileView buffer", () => {

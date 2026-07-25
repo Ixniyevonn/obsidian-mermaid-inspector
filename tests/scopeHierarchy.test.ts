@@ -1,10 +1,7 @@
 import { describe, expect, it } from "bun:test";
-import {
-	FULL_MERMAID,
-	getViewSourceWithMeta,
-	type ScopeInfo,
-} from "../src/utils/mermaidView";
-import { changeFocus, collapseScope } from "../src/utils/scopeState";
+import { getViewSourceWithMeta, type ScopeInfo } from "../src/diagram/model";
+import { changeFocus, collapseScope } from "../src/diagram/navigation";
+import { ORDER_FLOW_SOURCE } from "./fixtures/orderFlow";
 
 const scopes: ScopeInfo[] = [
 	{ id: "Outer", label: "Outer", parentId: null, depth: 0 },
@@ -14,13 +11,16 @@ const scopes: ScopeInfo[] = [
 
 describe("hierarchical subgraph visibility", () => {
 	it("does not emit a child subgraph while its parent is collapsed", () => {
-		const { source } = getViewSourceWithMeta(new Set(), FULL_MERMAID);
+		const { source } = getViewSourceWithMeta(new Set(), ORDER_FLOW_SOURCE);
 		expect(source).toContain("Outer(Order Processing)");
 		expect(source).not.toContain("subgraph Inner");
 	});
 
 	it("ignores stale child expansion when its parent is collapsed", () => {
-		const { source } = getViewSourceWithMeta(new Set(["Inner"]), FULL_MERMAID);
+		const { source } = getViewSourceWithMeta(
+			new Set(["Inner"]),
+			ORDER_FLOW_SOURCE,
+		);
 		expect(source).not.toContain("subgraph Inner");
 		expect(source).not.toContain("Enter");
 	});

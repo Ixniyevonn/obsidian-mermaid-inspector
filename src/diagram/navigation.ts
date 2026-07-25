@@ -1,4 +1,4 @@
-import type { ScopeInfo } from "./mermaidView";
+import type { ScopeInfo } from "./model";
 
 export interface ScopeNavigationState {
 	expanded: Set<string>;

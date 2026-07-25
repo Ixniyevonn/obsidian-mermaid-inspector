@@ -1,5 +1,5 @@
 import { type App, FuzzySuggestModal } from "obsidian";
-import type { MermaidTemplate } from "./templates";
+import type { MermaidTemplate } from "../templates";
 
 export class TemplatePickerModal extends FuzzySuggestModal<MermaidTemplate> {
 	constructor(

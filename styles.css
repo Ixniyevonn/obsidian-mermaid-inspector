@@ -1,116 +1,250 @@
-.mermaid-inspector-container{padding:0!important;height:100%}.mi-root{width:100%;height:100%;min-height:0;display:flex;flex-direction:column;color:var(--text-normal);background:var(--background-primary)}.mi-header{z-index:2;flex:none;padding:8px 12px;border-bottom:1px solid var(--background-modifier-border);background:var(--background-secondary)}.mi-header nav{display:flex;align-items:center;gap:5px;min-height:24px}.mi-breadcrumb{border:0;padding:2px 5px;color:var(--text-normal);background:transparent}.mi-breadcrumb:hover,.mi-actions button:hover{background:var(--background-modifier-hover)}.mi-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--text-muted);font-size:var(--font-ui-smaller)}.mi-canvas{position:relative;flex:1 1 0;min-height:0;overflow:hidden}.mi-viewport{position:absolute;inset:0;overflow:hidden;cursor:grab;touch-action:none;user-select:none}.mi-viewport.dragging{cursor:grabbing}.mi-world{position:absolute;top:0;left:0;transform-origin:0 0}.mi-diagram-host svg{display:block;overflow:visible;max-width:none!important}.mi-diagram-host [data-cluster-id]{cursor:pointer}.mi-diagram-host [data-cluster-id] rect{stroke:var(--interactive-accent)!important}.mi-diagram-host .mi-context{opacity:.2;transition:opacity 180ms ease}.mi-error{position:absolute;z-index:3;inset:16px auto auto 16px;max-width:min(560px,calc(100% - 32px));padding:12px;border:1px solid var(--background-modifier-error);border-radius:var(--radius-m);background:var(--background-secondary);color:var(--text-error)}.mi-error pre{margin:6px 0 0;white-space:pre-wrap;font-size:var(--font-ui-smaller)}
-.mi-empty{position:absolute;z-index:2;inset:50% auto auto 50%;translate:-50% -50%;color:var(--text-muted);font-size:var(--font-ui-small)}
-.mi-diagram-host svg{background:var(--background-primary)}
-.mi-diagram-host .node rect,.mi-diagram-host .node circle,.mi-diagram-host .node ellipse,.mi-diagram-host .node polygon,.mi-diagram-host .node path{fill:var(--background-secondary)!important;stroke:var(--background-modifier-border)!important}
-.mi-diagram-host text,.mi-diagram-host .label{fill:var(--text-normal)!important;color:var(--text-normal)!important}
-.mi-diagram-host .flowchart-link,.mi-diagram-host .edge-pattern-solid,.mi-diagram-host .edge-pattern-dashed{stroke:var(--text-muted)!important}
-.mi-diagram-host marker path{fill:var(--text-muted)!important;stroke:var(--text-muted)!important}
-.mi-diagram-host .cluster rect{fill:var(--background-secondary-alt,var(--background-secondary))!important}
+.mermaid-inspector-container {
+	padding: 0 !important;
+	height: 100%;
+}
+.mi-root {
+	width: 100%;
+	height: 100%;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	color: var(--text-normal);
+	background: var(--background-primary);
+}
+.mi-header {
+	z-index: 2;
+	flex: none;
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+}
+.mi-header nav {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	min-height: 24px;
+}
+.mi-breadcrumb {
+	border: 0;
+	padding: 2px 5px;
+	color: var(--text-normal);
+	background: transparent;
+}
+.mi-breadcrumb:hover,
+.mi-actions button:hover {
+	background: var(--background-modifier-hover);
+}
+.mi-actions {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+.mi-canvas {
+	position: relative;
+	flex: 1 1 0;
+	min-height: 0;
+	overflow: hidden;
+}
+.mi-viewport {
+	position: absolute;
+	inset: 0;
+	overflow: hidden;
+	cursor: grab;
+	touch-action: none;
+	user-select: none;
+}
+.mi-viewport.dragging {
+	cursor: grabbing;
+}
+.mi-world {
+	position: absolute;
+	top: 0;
+	left: 0;
+	transform-origin: 0 0;
+}
+.mi-diagram-host svg {
+	display: block;
+	overflow: visible;
+	max-width: none !important;
+}
+.mi-diagram-host [data-cluster-id] {
+	cursor: pointer;
+}
+.mi-diagram-host [data-cluster-id] rect {
+	stroke: var(--interactive-accent) !important;
+}
+.mi-diagram-host .mi-context {
+	opacity: 0.2;
+	transition: opacity 180ms ease;
+}
+.mi-error {
+	position: absolute;
+	z-index: 3;
+	inset: 16px auto auto 16px;
+	max-width: min(560px, calc(100% - 32px));
+	padding: 12px;
+	border: 1px solid var(--background-modifier-error);
+	border-radius: var(--radius-m);
+	background: var(--background-secondary);
+	color: var(--text-error);
+}
+.mi-error pre {
+	margin: 6px 0 0;
+	white-space: pre-wrap;
+	font-size: var(--font-ui-smaller);
+}
+.mi-empty {
+	position: absolute;
+	z-index: 2;
+	inset: 50% auto auto 50%;
+	translate: -50% -50%;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+.mi-diagram-host svg {
+	background: var(--background-primary);
+}
+.mi-diagram-host .node rect,
+.mi-diagram-host .node circle,
+.mi-diagram-host .node ellipse,
+.mi-diagram-host .node polygon,
+.mi-diagram-host .node path {
+	fill: var(--background-secondary) !important;
+	stroke: var(--background-modifier-border) !important;
+}
+.mi-diagram-host text,
+.mi-diagram-host .label {
+	fill: var(--text-normal) !important;
+	color: var(--text-normal) !important;
+}
+.mi-diagram-host .flowchart-link,
+.mi-diagram-host .edge-pattern-solid,
+.mi-diagram-host .edge-pattern-dashed {
+	stroke: var(--text-muted) !important;
+}
+.mi-diagram-host marker path {
+	fill: var(--text-muted) !important;
+	stroke: var(--text-muted) !important;
+}
+.mi-diagram-host .cluster rect {
+	fill: var(--background-secondary-alt, var(--background-secondary)) !important;
+}
 .mi-diagram-host .mi-collapsed-scope rect,
 .mi-diagram-host .mi-collapsed-scope path,
 .mi-diagram-host .mi-collapsed-scope polygon {
-  fill: color-mix(in srgb, var(--interactive-accent) 16%, var(--background-secondary)) !important;
-  stroke: var(--interactive-accent) !important;
-  stroke-width: 2.5px !important;
-  stroke-dasharray: 8 3;
+	fill: color-mix(
+		in srgb,
+		var(--interactive-accent) 16%,
+		var(--background-secondary)
+	) !important;
+	stroke: var(--interactive-accent) !important;
+	stroke-width: 2.5px !important;
+	stroke-dasharray: 8 3;
 }
 .mi-diagram-host .mi-collapsed-scope text,
 .mi-diagram-host .mi-collapsed-scope .label {
-  font-weight: 400 !important;
-  fill: var(--text-normal) !important;
+	font-weight: 400 !important;
+	fill: var(--text-normal) !important;
 }
 .mi-diagram-host .mi-collapsed-scope:hover rect,
 .mi-diagram-host .mi-collapsed-scope:hover path,
 .mi-diagram-host .mi-collapsed-scope:hover polygon {
-  fill: color-mix(in srgb, var(--interactive-accent) 24%, var(--background-secondary)) !important;
+	fill: color-mix(
+		in srgb,
+		var(--interactive-accent) 24%,
+		var(--background-secondary)
+	) !important;
 }
 .mi-diagram-host .mi-context-layer {
-  opacity: 0.24;
-  filter: blur(0.7px);
+	opacity: 0.24;
+	filter: blur(0.7px);
 }
 .mi-diagram-host .mi-empty-scope rect,
 .mi-diagram-host .mi-empty-scope path,
 .mi-diagram-host .mi-empty-scope polygon {
-  fill: var(--background-secondary) !important;
-  stroke: var(--interactive-accent) !important;
-  stroke-width: 2px !important;
-  stroke-dasharray: none !important;
+	fill: var(--background-secondary) !important;
+	stroke: var(--interactive-accent) !important;
+	stroke-width: 2px !important;
+	stroke-dasharray: none !important;
 }
 .mi-diagram-host .mi-empty-scope text,
 .mi-diagram-host .mi-empty-scope .label {
-  font-weight: 400 !important;
+	font-weight: 400 !important;
 }
 .mi-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+	display: flex;
+	align-items: center;
+	gap: 12px;
 }
 .mi-focus-path {
-  min-width: 0;
-  flex: 1 1 auto;
-  overflow-x: auto;
-  white-space: nowrap;
-  scrollbar-width: thin;
+	min-width: 0;
+	flex: 1 1 auto;
+	overflow-x: auto;
+	white-space: nowrap;
+	scrollbar-width: thin;
 }
 .mi-breadcrumb {
-  flex: 0 0 auto;
-  max-width: 240px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+	flex: 0 0 auto;
+	max-width: 240px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 .mi-breadcrumb[aria-current="page"] {
-  color: var(--text-accent);
-  font-weight: var(--font-semibold);
+	color: var(--text-accent);
+	font-weight: var(--font-semibold);
 }
 .mi-breadcrumb-separator {
-  flex: 0 0 auto;
-  color: var(--text-faint);
+	flex: 0 0 auto;
+	color: var(--text-faint);
 }
 .mi-header-actions {
-  flex: 0 0 auto;
+	flex: 0 0 auto;
 }
 .mi-header-actions button:hover {
-  background: var(--background-modifier-hover);
+	background: var(--background-modifier-hover);
 }
 .mi-footer {
-  z-index: 2;
-  flex: none;
-  padding: 5px 12px;
-  border-top: 1px solid var(--background-modifier-border);
-  overflow: hidden;
-  color: var(--text-muted);
-  background: var(--background-secondary);
-  font-size: var(--font-ui-smaller);
-  line-height: 1.4;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+	z-index: 2;
+	flex: none;
+	padding: 5px 12px;
+	border-top: 1px solid var(--background-modifier-border);
+	overflow: hidden;
+	color: var(--text-muted);
+	background: var(--background-secondary);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.4;
+	text-align: center;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 .mi-fit-button {
-  border: 0;
-  box-shadow: none;
+	border: 0;
+	box-shadow: none;
 }
 .mi-fit-overlay {
-  position: absolute;
-  z-index: 4;
-  top: 8px;
-  right: 8px;
+	position: absolute;
+	z-index: 4;
+	top: 8px;
+	right: 8px;
 }
 .mermaid-inspector-embed {
-  display: block;
-  width: 100%;
-  height: min(62vh, 560px);
-  min-height: 280px;
-  margin: 1em 0;
-  overflow: hidden;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-m);
-  background: var(--background-primary);
+	display: block;
+	width: 100%;
+	height: min(62vh, 560px);
+	min-height: 280px;
+	margin: 1em 0;
+	overflow: hidden;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
 }
 .mermaid-inspector-embed .mi-root {
-  min-height: 280px;
+	min-height: 280px;
 }
 .mi-compact .mi-canvas {
-  height: 100%;
+	height: 100%;
 }

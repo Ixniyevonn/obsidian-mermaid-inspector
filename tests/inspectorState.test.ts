@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
 	embeddedStateKey,
 	normalizeInspectorState,
-} from "../src/utils/inspectorState";
+} from "../src/diagram/state";
 
 describe("embedded inspector state", () => {
 	it("isolates the same diagram state by its host Markdown file", () => {

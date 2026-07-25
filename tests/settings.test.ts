@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { DEFAULT_SETTINGS } from "../src/settingsData";
+import { DEFAULT_SETTINGS } from "../src/pluginSettings";
 
 describe("plugin settings", () => {
 	it("uses a visible but responsive default transition duration", () => {

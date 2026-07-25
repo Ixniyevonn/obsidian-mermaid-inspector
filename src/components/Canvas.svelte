@@ -5,7 +5,7 @@ import {
 	type CameraState,
 	fitCamera,
 	interpolateCamera,
-} from "../utils/camera";
+} from "../diagram/camera";
 
 let {
 	children,
