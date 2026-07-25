@@ -1,7 +1,16 @@
 import { describe, expect, it } from "bun:test";
-import { fitCamera, interpolateCamera } from "../src/diagram/camera";
+import {
+	fitCamera,
+	hasUsableViewport,
+	interpolateCamera,
+} from "../src/diagram/camera";
 
 describe("diagram camera", () => {
+	it("waits for an inline viewport to receive layout dimensions", () => {
+		expect(hasUsableViewport({ width: 0, height: 560 })).toBe(false);
+		expect(hasUsableViewport({ width: 800, height: 0 })).toBe(false);
+		expect(hasUsableViewport({ width: 800, height: 560 })).toBe(true);
+	});
 	it("centers and fits bounds with viewport padding", () => {
 		expect(
 			fitCamera(

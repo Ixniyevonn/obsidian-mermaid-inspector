@@ -248,3 +248,33 @@
 .mi-compact .mi-canvas {
 	height: 100%;
 }
+/* Mermaid emits its own light palette. These semantic overrides keep every
+   generated label and surface readable in both light and dark Obsidian themes. */
+.mi-diagram-host svg {
+	color: var(--text-normal, #1f2328) !important;
+	background: var(--background-primary, #ffffff) !important;
+}
+.mi-diagram-host :is(text, tspan),
+.mi-diagram-host :is(.label, .nodeLabel, .edgeLabel, .cluster-label),
+.mi-diagram-host foreignObject,
+.mi-diagram-host foreignObject :is(div, span, p) {
+	fill: var(--text-normal, #1f2328) !important;
+	color: var(--text-normal, #1f2328) !important;
+}
+.mi-diagram-host :is(.edgeLabel rect, .labelBkg) {
+	fill: var(--background-primary, #ffffff) !important;
+	stroke: var(--background-modifier-border, #d0d0d0) !important;
+	opacity: 0.96 !important;
+}
+.mi-diagram-host :is(.nodeLabel, .edgeLabel) p {
+	margin: 0;
+	background: transparent !important;
+}
+.mi-diagram-host
+	:is(.flowchart-link, .edge-pattern-solid, .edge-pattern-dashed) {
+	stroke: var(--text-muted, #666666) !important;
+}
+.mi-diagram-host marker path {
+	fill: var(--text-muted, #666666) !important;
+	stroke: var(--text-muted, #666666) !important;
+}

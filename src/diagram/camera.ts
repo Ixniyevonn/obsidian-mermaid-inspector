@@ -11,6 +11,12 @@ export interface CameraBounds {
 	height: number;
 }
 
+export function hasUsableViewport(
+	viewport: Pick<DOMRect, "width" | "height">,
+): boolean {
+	return viewport.width > 0 && viewport.height > 0;
+}
+
 export function fitCamera(
 	viewport: Pick<DOMRect, "width" | "height">,
 	bounds?: CameraBounds,

@@ -1,13 +1,15 @@
 {
 	"name": "obsidian-mermaid-inspector",
 	"private": true,
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
 		"dev": "vite build --mode development --watch",
 		"build": "vite build --mode production",
 		"verify:release": "bun run scripts/verify-release.ts",
+		"release:prepare": "bun run scripts/prepare-release.ts",
+		"git:check": "bun run verify:release && bun test && bun run check && bun run build",
 		"check": "svelte-check --tsconfig ./tsconfig.json",
 		"test": "bun test",
 		"test:watch": "bun test --watch",

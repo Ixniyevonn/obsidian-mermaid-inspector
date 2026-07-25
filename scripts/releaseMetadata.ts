@@ -49,3 +49,31 @@ export function validateReleaseMetadata(metadata: ReleaseMetadata): string[] {
 	}
 	return errors;
 }
+export interface PreparedReleaseMetadata {
+	packageVersion: string;
+	manifest: PluginManifest;
+	versions: Record<string, string>;
+}
+
+export function prepareReleaseMetadata(
+	current: Pick<
+		ReleaseMetadata,
+		"packageVersion" | "rootManifest" | "rootVersions"
+	>,
+	version: string,
+	minAppVersion = current.rootManifest.minAppVersion,
+): PreparedReleaseMetadata {
+	if (!/^\d+\.\d+\.\d+$/.test(version)) {
+		throw new Error(`Version must use stable SemVer (x.y.z): ${version}`);
+	}
+	if (!/^\d+\.\d+\.\d+$/.test(minAppVersion)) {
+		throw new Error(
+			`Minimum Obsidian version must use x.y.z: ${minAppVersion}`,
+		);
+	}
+	return {
+		packageVersion: version,
+		manifest: { ...current.rootManifest, version, minAppVersion },
+		versions: { ...current.rootVersions, [version]: minAppVersion },
+	};
+}

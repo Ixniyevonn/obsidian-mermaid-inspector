@@ -123,7 +123,7 @@ async function render(animate: boolean, fit = false) {
 		}
 		if (fit) {
 			await tick();
-			canvas.fit(fitBounds(next), false);
+			canvas.fitWhenReady(fitBounds(next), false);
 		}
 	} catch (cause) {
 		error = cause instanceof Error ? cause.message : String(cause);

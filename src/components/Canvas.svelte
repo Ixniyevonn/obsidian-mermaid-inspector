@@ -1,9 +1,10 @@
 <script lang="ts">
-import { type Snippet, untrack } from "svelte";
+import { onDestroy, type Snippet, untrack } from "svelte";
 import {
 	type CameraBounds,
 	type CameraState,
 	fitCamera,
+	hasUsableViewport,
 	interpolateCamera,
 } from "../diagram/camera";
 
@@ -26,6 +27,7 @@ let panX = $state(restoredCamera.panX),
 let pointerId = $state<number | null>(null);
 let origin = { x: 0, y: 0, panX: 0, panY: 0 };
 let cameraFrame: number | null = null;
+let initialFitObserver: ResizeObserver | null = null;
 function cancelCameraAnimation() {
 	if (cameraFrame !== null) cancelAnimationFrame(cameraFrame);
 	cameraFrame = null;
@@ -72,6 +74,22 @@ function wheel(event: WheelEvent) {
 	zoom = next;
 	reportCamera();
 }
+export function fitWhenReady(bounds?: CameraBounds, animate = false): void {
+	initialFitObserver?.disconnect();
+	initialFitObserver = null;
+	const attempt = () => {
+		if (!hasUsableViewport(viewport.getBoundingClientRect())) return;
+		initialFitObserver?.disconnect();
+		initialFitObserver = null;
+		fit(bounds, animate);
+	};
+	if (hasUsableViewport(viewport.getBoundingClientRect())) {
+		attempt();
+		return;
+	}
+	initialFitObserver = new ResizeObserver(attempt);
+	initialFitObserver.observe(viewport);
+}
 export function fit(bounds?: CameraBounds, animate = true) {
 	const target = fitCamera(viewport.getBoundingClientRect(), bounds);
 	cancelCameraAnimation();
@@ -97,6 +115,10 @@ export function fit(bounds?: CameraBounds, animate = true) {
 	};
 	cameraFrame = requestAnimationFrame(frame);
 }
+onDestroy(() => {
+	initialFitObserver?.disconnect();
+	cancelCameraAnimation();
+});
 </script>
 <div class:dragging={pointerId !== null} class="mi-viewport" bind:this={viewport}
 	onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up}

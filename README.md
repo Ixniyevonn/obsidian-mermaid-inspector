@@ -48,3 +48,5 @@ bun run build
 ```
 
 A production build is written to `build/` and copied to the plugin directory in `test-vault`.
+
+For the complete manual commit and BRAT release process, see [GIT_WORKFLOW.md](GIT_WORKFLOW.md).
