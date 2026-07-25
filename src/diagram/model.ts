@@ -32,6 +32,9 @@ function passthroughMeta(source: string): ViewSourceMeta {
 		scopes: [],
 	};
 }
+function sourceForHierarchyParser(source: string): string {
+	return source.replace(/^[\t ]*%%(?!\{)[^\r\n]*(\r?\n|$)/gm, "$1");
+}
 function labelOf(value: unknown, fallback: string): string {
 	if (typeof value === "string" && value.trim())
 		return value.replace(/^["']|["']$/g, "");
@@ -57,7 +60,7 @@ export function getViewSourceWithMeta(
 ): ViewSourceMeta {
 	let diagram: Flowchart;
 	try {
-		diagram = Flowchart.parse(fullSource);
+		diagram = Flowchart.parse(sourceForHierarchyParser(fullSource));
 	} catch {
 		// Mermaid is the rendering authority. mermaid-ast powers the optional
 		// hierarchy controls, but it can lag behind Mermaid's evolving syntax.

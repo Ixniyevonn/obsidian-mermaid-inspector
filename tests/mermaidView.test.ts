@@ -148,6 +148,23 @@ describe("getViewSourceWithMeta — Mermaid syntax compatibility", () => {
 		expect(meta.source).toContain("A --> B");
 	});
 
+	it("keeps a commented subgraph collapsible", () => {
+		const source = `flowchart LR
+  Start --> A
+  subgraph Group["Commented group"]
+    %% Explain why these nodes belong together.
+    A --> B
+  end
+  B --> Done
+`;
+
+		const meta = getViewSourceWithMeta(new Set(), source);
+
+		expect(meta.scopes.map((scope) => scope.id)).toEqual(["Group"]);
+		expect(meta.collapsedScopeIds).toEqual(["Group"]);
+		expect(meta.source).toContain("Start --> Group");
+		expect(meta.source).not.toContain("A --> B");
+	});
 	it("passes newer Mermaid syntax through unchanged when mermaid-ast lags behind", () => {
 		const source = `flowchart LR
   A@{ shape: rounded, label: "Start" } --> B
