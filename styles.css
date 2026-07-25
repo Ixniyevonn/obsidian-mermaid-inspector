@@ -225,11 +225,18 @@
 	border: 0;
 	box-shadow: none;
 }
-.mi-fit-overlay {
+.mi-compact-actions {
 	position: absolute;
 	z-index: 4;
 	top: 8px;
 	right: 8px;
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+.mi-compact-actions .clickable-icon {
+	border: 0;
+	box-shadow: none;
 }
 .mermaid-inspector-embed {
 	display: block;

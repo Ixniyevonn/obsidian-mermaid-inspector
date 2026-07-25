@@ -26,12 +26,14 @@ let {
 	compact = false,
 	initialState,
 	onStateChange,
+	onOpenFile,
 }: {
 	source: string;
 	transitionDuration: number;
 	compact?: boolean;
 	initialState?: InspectorState;
 	onStateChange?: (state: InspectorState) => void;
+	onOpenFile?: () => void;
 } = $props();
 const restoredState = untrack(() => normalizeInspectorState(initialState));
 let host: HTMLDivElement, canvas: Canvas;
@@ -50,6 +52,9 @@ let initializedSource = false;
 const cache = new Map<string, string>();
 function fitIcon(node: HTMLElement) {
 	setIcon(node, "scan");
+}
+function externalLinkIcon(node: HTMLElement) {
+	setIcon(node, "external-link");
 }
 function fitBounds(svg = currentSvg) {
 	return svg ? focusedFitBounds(svg, focusPath.at(-1)) : undefined;
@@ -197,7 +202,12 @@ $effect(() => {
 		</header>
 	{/if}
 	<div class="mi-canvas">
-		{#if compact}<button class="clickable-icon mi-fit-button mi-fit-overlay" use:fitIcon aria-label="Fit diagram" title="Fit diagram" onclick={() => canvas.fit(fitBounds())}></button>{/if}
+		{#if compact}
+		<div class="mi-compact-actions">
+			{#if onOpenFile}<button class="clickable-icon" use:externalLinkIcon aria-label="Open diagram in inspector" title="Open diagram in inspector" onclick={onOpenFile}></button>{/if}
+			<button class="clickable-icon mi-fit-button" use:fitIcon aria-label="Fit diagram" title="Fit diagram" onclick={() => canvas.fit(fitBounds())}></button>
+		</div>
+	{/if}
 		{#if empty}<div class="mi-empty">Open or create a Mermaid .mmd file</div>{/if}
 		{#if error}<div class="mi-error" role="alert"><strong>Could not render Mermaid</strong><pre>{error}</pre></div>{/if}
 		<Canvas bind:this={canvas} {transitionDuration} initialCamera={restoredState.camera} onCameraChange={(camera) => { cameraState = camera; emitState(); }}><div class="mi-diagram-host" bind:this={host}></div></Canvas>

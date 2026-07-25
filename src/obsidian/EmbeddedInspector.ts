@@ -2,6 +2,7 @@ import { MarkdownRenderChild, type TFile } from "obsidian";
 import { mount, unmount } from "svelte";
 import MermaidInspector from "../components/MermaidInspector.svelte";
 import type MermaidInspectorPlugin from "../main";
+import { openDiagramFile } from "./openDiagramFile";
 
 export class EmbeddedInspector extends MarkdownRenderChild {
 	private component: ReturnType<typeof mount> | null = null;
@@ -47,6 +48,7 @@ export class EmbeddedInspector extends MarkdownRenderChild {
 				initialState: this.plugin.getEmbeddedState(this.stateKey),
 				onStateChange: (state) =>
 					this.plugin.setEmbeddedState(this.stateKey, state),
+				onOpenFile: () => openDiagramFile(this.plugin.app.workspace, this.file),
 			},
 		});
 	}
