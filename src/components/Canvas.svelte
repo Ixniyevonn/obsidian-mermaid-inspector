@@ -1,6 +1,7 @@
 <script lang="ts">
 import { type Snippet, untrack } from "svelte";
 import {
+	type CameraBounds,
 	type CameraState,
 	fitCamera,
 	interpolateCamera,
@@ -71,7 +72,7 @@ function wheel(event: WheelEvent) {
 	zoom = next;
 	reportCamera();
 }
-export function fit(bounds?: DOMRect | SVGRect, animate = true) {
+export function fit(bounds?: CameraBounds, animate = true) {
 	const target = fitCamera(viewport.getBoundingClientRect(), bounds);
 	cancelCameraAnimation();
 	if (!animate || transitionDuration <= 0) {

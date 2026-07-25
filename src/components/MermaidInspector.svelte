@@ -1,6 +1,7 @@
 <script lang="ts">
 import { setIcon } from "obsidian";
 import { tick, untrack } from "svelte";
+import { focusedFitBounds } from "../utils/fitBounds";
 import { groupBackgroundElements } from "../utils/focusContext";
 import {
 	type InspectorState,
@@ -53,6 +54,9 @@ let initializedSource = false;
 const cache = new Map<string, string>();
 function fitIcon(node: HTMLElement) {
 	setIcon(node, "scan");
+}
+function fitBounds(svg = currentSvg) {
+	return svg ? focusedFitBounds(svg, focusPath.at(-1)) : undefined;
 }
 function emitState() {
 	onStateChange?.({
@@ -118,7 +122,7 @@ async function render(animate: boolean, fit = false) {
 		}
 		if (fit) {
 			await tick();
-			canvas.fit(next.viewBox?.baseVal, false);
+			canvas.fit(fitBounds(next), false);
 		}
 	} catch (cause) {
 		error = cause instanceof Error ? cause.message : String(cause);
@@ -317,12 +321,12 @@ $effect(() => {
 				{/each}
 			</nav>
 			<div class="mi-header-actions">
-				<button class="clickable-icon mi-fit-button" use:fitIcon aria-label="Fit diagram" title="Fit diagram" onclick={() => canvas.fit(currentSvg?.viewBox?.baseVal)}></button>
+				<button class="clickable-icon mi-fit-button" use:fitIcon aria-label="Fit diagram" title="Fit diagram" onclick={() => canvas.fit(fitBounds())}></button>
 			</div>
 		</header>
 	{/if}
 	<div class="mi-canvas">
-		{#if compact}<button class="clickable-icon mi-fit-button mi-fit-overlay" use:fitIcon aria-label="Fit diagram" title="Fit diagram" onclick={() => canvas.fit(currentSvg?.viewBox?.baseVal)}></button>{/if}
+		{#if compact}<button class="clickable-icon mi-fit-button mi-fit-overlay" use:fitIcon aria-label="Fit diagram" title="Fit diagram" onclick={() => canvas.fit(fitBounds())}></button>{/if}
 		{#if empty}<div class="mi-empty">Open or create a Mermaid .mmd file</div>{/if}
 		{#if error}<div class="mi-error" role="alert"><strong>Could not render Mermaid</strong><pre>{error}</pre></div>{/if}
 		<Canvas bind:this={canvas} {transitionDuration} initialCamera={restoredState.camera} onCameraChange={(camera) => { cameraState = camera; emitState(); }}><div class="mi-diagram-host" bind:this={host}></div></Canvas>
