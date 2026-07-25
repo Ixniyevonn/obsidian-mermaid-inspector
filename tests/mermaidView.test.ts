@@ -213,4 +213,37 @@ describe("getViewSourceWithMeta — Mermaid syntax compatibility", () => {
 		expect(meta.scopes).toEqual([]);
 		expect(meta.edgeKeys).toEqual([]);
 	});
+
+	it("preserves modern node shape declarations inside expanded subgraphs", () => {
+		const source = `flowchart TB
+  subgraph Relations
+    Relations_Vector_Comment@{shape: comment, label: "RRLL"}
+  end`;
+
+		const collapsed = getViewSourceWithMeta(new Set(), source);
+		expect(collapsed.source).not.toContain("@{");
+
+		const expanded = getViewSourceWithMeta(new Set(["Relations"]), source);
+		expect(expanded.source).toContain(
+			'Relations_Vector_Comment@{shape: comment, label: "RRLL"}',
+		);
+	});
+
+	it("preserves a modern declaration when its first use is an edge endpoint", () => {
+		const source = `flowchart LR
+  subgraph Relations
+    Source --> Relations_Vector_Comment@{
+      shape: comment,
+      label: "RRLL"
+    }
+  end`;
+
+		const expanded = getViewSourceWithMeta(new Set(["Relations"]), source);
+		expect(expanded.source).toContain(
+			`Relations_Vector_Comment@{
+      shape: comment,
+      label: "RRLL"
+    }`,
+		);
+	});
 });

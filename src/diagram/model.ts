@@ -47,6 +47,81 @@ function labelOf(value: unknown, fallback: string): string {
 	return fallback;
 }
 
+function modernNodeDeclarations(source: string): Map<string, string> {
+	const declarations = new Map<string, string>();
+	for (
+		let at = source.indexOf("@{");
+		at >= 0;
+		at = source.indexOf("@{", at + 2)
+	) {
+		let idEnd = at;
+		while (idEnd > 0 && /\s/.test(source[idEnd - 1] ?? "")) idEnd -= 1;
+		let idStart = idEnd;
+		while (idStart > 0 && /[\w-]/u.test(source[idStart - 1] ?? ""))
+			idStart -= 1;
+		const id = source.slice(idStart, idEnd);
+		if (!/^[A-Za-z_][\w-]*$/u.test(id)) continue;
+
+		let quote: '"' | "'" | null = null;
+		let escaped = false;
+		let depth = 0;
+		let end = at;
+		for (; end < source.length; end += 1) {
+			const char = source[end];
+			if (escaped) {
+				escaped = false;
+				continue;
+			}
+			if (char === "\\" && quote) {
+				escaped = true;
+				continue;
+			}
+			if (quote) {
+				if (char === quote) quote = null;
+				continue;
+			}
+			if (char === '"' || char === "'") {
+				quote = char;
+				continue;
+			}
+			if (char === "{") depth += 1;
+			if (char === "}") {
+				depth -= 1;
+				if (depth === 0) break;
+			}
+		}
+		if (depth === 0 && end < source.length) {
+			declarations.set(id, source.slice(at, end + 1));
+			at = end;
+		}
+	}
+	return declarations;
+}
+
+function restoreModernNodeDeclarations(
+	source: string,
+	declarations: Map<string, string>,
+): string {
+	const lines = source.split(/\r?\n/);
+	const directive =
+		/^(?:subgraph|classDef|class|style|linkStyle|click|direction)\b/;
+	for (const [id, declaration] of declarations) {
+		const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, (char) => `\\${char}`);
+		const reference = new RegExp(`(^|[^\\w-])(${escapedId})(?![\\w-])`);
+		for (let index = 0; index < lines.length; index += 1) {
+			const trimmed = lines[index]?.trimStart() ?? "";
+			if (directive.test(trimmed)) continue;
+			if (!reference.test(lines[index] ?? "")) continue;
+			lines[index] = (lines[index] ?? "").replace(
+				reference,
+				`$1$2${declaration}`,
+			);
+			break;
+		}
+	}
+	return lines.join("\n");
+}
+
 function directParentByElement(
 	subgraphs: Array<{ id: string; nodes: string[] }>,
 ): Map<string, string> {
@@ -371,17 +446,24 @@ export function getViewSourceWithMeta(
 			depth,
 		};
 	});
-	const renderedSource = nestRenderedSubgraphs(
-		diagram.render(),
-		new Set(
-			originalSubgraphs
-				.filter(
-					(scope) =>
-						isVisibleScope(scope.id) && isEffectivelyExpanded(scope.id),
-				)
-				.map((scope) => scope.id),
+	const renderedSource = restoreModernNodeDeclarations(
+		nestRenderedSubgraphs(
+			diagram.render(),
+			new Set(
+				originalSubgraphs
+					.filter(
+						(scope) =>
+							isVisibleScope(scope.id) && isEffectivelyExpanded(scope.id),
+					)
+					.map((scope) => scope.id),
+			),
+			parent,
 		),
-		parent,
+		new Map(
+			[...modernNodeDeclarations(fullSource)].filter(([id]) =>
+				diagram.hasNode(id),
+			),
+		),
 	);
 	return {
 		source: renderedSource,

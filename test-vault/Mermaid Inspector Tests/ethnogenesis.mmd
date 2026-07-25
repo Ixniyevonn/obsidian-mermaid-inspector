@@ -1,7 +1,7 @@
 flowchart TB
     subgraph World_State
         direction TB
-        subgraph Landscapes
+        subgraph Landscapes_SoA
             Position_Landscape
             Handles_Neighbors
             class Position_Landscape,Handles_Neighbors tech_field
@@ -16,9 +16,18 @@ flowchart TB
             end
             Trait_Vector_Landscape
         end
-        subgraph Ethnic_Units
+        subgraph Ethnic_Units_SoA
             direction TB
+            Positions
+            Spatial_Keys
+            
+
             Trait_Vector_Ethnic
+            %%Persistent unit-owned scalar state whose value describes that unit relative to an externally defined referent%%
+            Relations_Vector 
+            Relations_Vector_Comment@{shape: comment, label: "RRLL"}
+            Needs_Vector
+
             Ethnic_Views
             Lifestory_Graphs
         end
@@ -30,8 +39,8 @@ flowchart TB
     Simulation_Pipeline --->|state read| World_State
     
     classDef model fill:#1e293b,stroke:#94a3b8,color:#e2e8f0
-    class Traits,Ethnic_Views,Lifestory_Graphs,Landscapes,Ethnic_Units model
+    class Landscapes_SoA,Ethnic_Units_SoA,Traits,Ethnic_Views,Lifestory_Graphs model
 
     classDef field fill:#1e293b,stroke:#94a3b8,color:#e2e8f0
-    class Trait_Vector_Ls,Trait_Vector_EU field
+    class Trait_Vector_Landscape,Trait_Vector_Ethnic field
     classDef tech_field fill:#1e293b,stroke:#94a3b8,color:#e2e8f0
