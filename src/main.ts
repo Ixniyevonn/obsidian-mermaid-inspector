@@ -1,7 +1,6 @@
 import { Notice, normalizePath, Plugin, TFile, TFolder } from "obsidian";
 import "../styles.css";
 import { EmbeddedInspector } from "./embeds/EmbeddedInspector";
-import { createLivePreviewExtension } from "./embeds/livePreviewExtension";
 import {
 	DEFAULT_SETTINGS,
 	type MermaidInspectorSettings,
@@ -26,7 +25,6 @@ export default class MermaidInspectorPlugin extends Plugin {
 		this.registerView(VIEW_TYPE, (leaf) => new InspectorView(leaf, this));
 		this.addSettingTab(new MermaidInspectorSettingTab(this.app, this));
 		this.registerExtensions(["mmd"], VIEW_TYPE);
-		this.registerEditorExtension(createLivePreviewExtension(this));
 		this.registerMarkdownPostProcessor((element, context) => {
 			const mountedPaths = new Set<string>();
 			const mountEmbed = (target: HTMLElement, file: TFile) => {
