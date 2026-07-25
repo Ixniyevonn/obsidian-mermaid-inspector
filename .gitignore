@@ -13,10 +13,10 @@ dist-ssr
 *.local
 build
 
-test-vault/.obsidian/workspace.json
-test-vault/.obsidian/plugins/obsidian-mermaid-inspector/*.css
-test-vault/.obsidian/plugins/obsidian-mermaid-inspector/*.js
-test-vault/.obsidian/plugins/obsidian-mermaid-inspector/*.json
+# The test vault is runtime scratch space. Keep only project-owned fixtures.
+test-vault/**
+!test-vault/Mermaid Inspector Tests/
+!test-vault/Mermaid Inspector Tests/**
 
 # Editor directories and files
 .vscode/*
