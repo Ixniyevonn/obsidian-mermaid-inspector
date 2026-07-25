@@ -47,6 +47,63 @@ function labelOf(value: unknown, fallback: string): string {
 	return fallback;
 }
 
+function directParentByElement(
+	subgraphs: Array<{ id: string; nodes: string[] }>,
+): Map<string, string> {
+	const subgraphIds = new Set(subgraphs.map((scope) => scope.id));
+	const containingScopes = new Map<string, string[]>();
+	for (const scope of subgraphs) {
+		for (const memberId of scope.nodes) {
+			const containers = containingScopes.get(memberId) ?? [];
+			containers.push(scope.id);
+			containingScopes.set(memberId, containers);
+		}
+	}
+
+	const scopeParent = new Map<string, string>();
+	for (const scope of subgraphs) {
+		const candidates = containingScopes.get(scope.id) ?? [];
+		const direct = candidates.find(
+			(candidate) =>
+				!candidates.some(
+					(other) =>
+						other !== candidate &&
+						containingScopes.get(candidate)?.includes(other),
+				),
+		);
+		if (direct) scopeParent.set(scope.id, direct);
+	}
+
+	const depthOfScope = (id: string): number => {
+		let depth = 0;
+		let cursor = id;
+		const seen = new Set<string>();
+		while (scopeParent.has(cursor) && !seen.has(cursor)) {
+			seen.add(cursor);
+			const parentId = scopeParent.get(cursor);
+			if (!parentId) break;
+			cursor = parentId;
+			depth += 1;
+		}
+		return depth;
+	};
+
+	const parent = new Map(scopeParent);
+	for (const [memberId, candidates] of containingScopes) {
+		if (subgraphIds.has(memberId)) continue;
+		let direct: string | undefined;
+		for (const candidate of candidates) {
+			if (
+				direct === undefined ||
+				depthOfScope(candidate) > depthOfScope(direct)
+			) {
+				direct = candidate;
+			}
+		}
+		if (direct) parent.set(memberId, direct);
+	}
+	return parent;
+}
 export function getViewSource(
 	expanded: Set<string>,
 	fullSource: string,
@@ -81,10 +138,7 @@ export function getViewSourceWithMeta(
 			.filter((scope) => scope.nodes.length === 0)
 			.map((scope) => scope.id),
 	);
-	const parent = new Map<string, string>();
-	for (const scope of originalSubgraphs) {
-		for (const memberId of scope.nodes) parent.set(memberId, scope.id);
-	}
+	const parent = directParentByElement(originalSubgraphs);
 
 	const isEffectivelyExpanded = (id: string): boolean => {
 		if (!expanded.has(id)) return false;
@@ -121,7 +175,11 @@ export function getViewSourceWithMeta(
 
 	const edgeKeys: string[] = [];
 	const redirected = new Set<string>();
-	const redirects: Array<[string, string]> = [];
+	const redirects: Array<{
+		source: string;
+		target: string;
+		link: (typeof diagram.links)[number];
+	}> = [];
 	for (const link of [...diagram.links]) {
 		const source = proxy(link.source);
 		const target = proxy(link.target);
@@ -132,17 +190,22 @@ export function getViewSourceWithMeta(
 			edgeKeys.push(key);
 		}
 		if (source !== link.source || target !== link.target) {
-			redirects.push([source, target]);
+			redirects.push({ source, target, link });
 		}
 	}
-	for (const [source, target] of redirects) {
+	for (const { source, target, link } of redirects) {
 		const key = `${source}--${target}`;
 		if (
 			diagram.links.some((link) => `${link.source}--${link.target}` === key)
 		) {
 			continue;
 		}
-		diagram.addLink(source, target);
+		diagram.addLink(source, target, {
+			text: link.text?.text,
+			type: link.type,
+			stroke: link.stroke,
+			length: link.length,
+		});
 	}
 
 	for (const scope of originalSubgraphs) {

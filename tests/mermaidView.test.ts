@@ -66,6 +66,43 @@ describe("getViewSource — edge connectivity", () => {
 		expect(e.has("Inner --> ShipPrep")).toBe(true);
 	});
 
+	it("redirects an internal node endpoint through its collapsed nested scope", () => {
+		const source = `flowchart TB
+  subgraph World_State
+    Landscapes
+    subgraph Ethnic_Units
+      Traits
+      EthnicAggregations
+      Traits --> EthnicAggregations
+    end
+    Landscapes --> Ethnic_Units
+    EthnicAggregations --> Landscapes
+  end
+`;
+
+		const src = getViewSource(new Set(["World_State"]), source);
+		const e = edges(src);
+
+		expect(e.has("Ethnic_Units --> Landscapes")).toBe(true);
+		expect(e.has("EthnicAggregations --> Landscapes")).toBe(false);
+		expect(src).not.toContain("EthnicAggregations");
+	});
+
+	it("preserves the type and label of an edge redirected to a collapsed scope", () => {
+		const source = `flowchart LR
+  Priority ==>|urgent| Worker
+  Optional -.->|retry| Worker
+  subgraph Pool["Worker Pool"]
+    Worker["Deep Worker"]
+  end
+`;
+
+		const src = getViewSource(new Set(), source);
+
+		expect(src).toContain("Priority ==>|urgent| Pool");
+		expect(src).toContain("Optional -.->|retry| Pool");
+		expect(src).not.toContain("Priority --> Pool");
+	});
 	it("Outer expanded, Inner collapsed: internal Inner edges are gone", () => {
 		const src = getViewSource(new Set(["Outer"]), ORDER_FLOW_SOURCE);
 		const e = edges(src);
