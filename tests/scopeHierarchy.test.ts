@@ -24,6 +24,39 @@ describe("hierarchical subgraph visibility", () => {
 		expect(source).not.toContain("subgraph Inner");
 		expect(source).not.toContain("Enter");
 	});
+
+	it("emits deeply expanded subgraphs inside their parents", () => {
+		const source = `flowchart TB
+  subgraph World
+    subgraph Landscapes
+      Position
+      subgraph Climate
+        Temperature
+      end
+    end
+    subgraph People
+      Population
+    end
+  end`;
+		const { source: rendered } = getViewSourceWithMeta(
+			new Set(["World", "Landscapes", "Climate"]),
+			source,
+		);
+
+		expect(rendered).toContain(
+			[
+				"    subgraph World",
+				"        People(People)",
+				"        subgraph Landscapes",
+				"            Position",
+				"            subgraph Climate",
+				"                Temperature",
+				"            end",
+				"        end",
+				"    end",
+			].join("\n"),
+		);
+	});
 });
 
 describe("recursive scope collapse", () => {

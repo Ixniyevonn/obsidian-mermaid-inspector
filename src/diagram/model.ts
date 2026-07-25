@@ -104,6 +104,87 @@ function directParentByElement(
 	}
 	return parent;
 }
+
+interface RenderedSubgraphBlock {
+	id: string;
+	lines: string[];
+}
+
+function nestRenderedSubgraphs(
+	source: string,
+	scopeIds: Set<string>,
+	parent: Map<string, string>,
+): string {
+	const lines = source.split(/\r?\n/);
+	const blocks = new Map<string, RenderedSubgraphBlock>();
+	const rootParts: Array<string | RenderedSubgraphBlock> = [];
+
+	for (let index = 0; index < lines.length; ) {
+		const trimmed = lines[index]?.trim() ?? "";
+		const id = [...scopeIds].find((candidate) => {
+			const prefix = `subgraph ${candidate}`;
+			if (!trimmed.startsWith(prefix)) return false;
+			const next = trimmed[prefix.length];
+			return next === undefined || next === "[";
+		});
+		if (!id) {
+			rootParts.push(lines[index] ?? "");
+			index += 1;
+			continue;
+		}
+
+		let depth = 0;
+		let end = index;
+		for (; end < lines.length; end += 1) {
+			const line = lines[end]?.trim() ?? "";
+			if (line.startsWith("subgraph ")) depth += 1;
+			if (line === "end") {
+				depth -= 1;
+				if (depth === 0) break;
+			}
+		}
+		if (end >= lines.length) return source;
+
+		const block = { id, lines: lines.slice(index, end + 1) };
+		blocks.set(id, block);
+		rootParts.push(block);
+		index = end + 1;
+	}
+
+	const children = new Map<string, string[]>();
+	for (const id of scopeIds) {
+		const parentId = parent.get(id);
+		if (!parentId || !scopeIds.has(parentId)) continue;
+		const ids = children.get(parentId) ?? [];
+		ids.push(id);
+		children.set(parentId, ids);
+	}
+
+	const emit = (block: RenderedSubgraphBlock, indent: string): string[] => {
+		const header = block.lines[0]?.trim() ?? "";
+		const body = block.lines
+			.slice(1, -1)
+			.map((line) => `${indent}    ${line.trimStart()}`);
+		for (const childId of children.get(block.id) ?? []) {
+			const child = blocks.get(childId);
+			if (child) body.push(...emit(child, `${indent}    `));
+		}
+		return [`${indent}${header}`, ...body, `${indent}end`];
+	};
+
+	const nestedIds = new Set(
+		[...blocks.keys()].filter((id) => {
+			const parentId = parent.get(id);
+			return parentId !== undefined && blocks.has(parentId);
+		}),
+	);
+	const output: string[] = [];
+	for (const part of rootParts) {
+		if (typeof part === "string") output.push(part);
+		else if (!nestedIds.has(part.id)) output.push(...emit(part, "    "));
+	}
+	return output.join("\n");
+}
 export function getViewSource(
 	expanded: Set<string>,
 	fullSource: string,
@@ -290,8 +371,20 @@ export function getViewSourceWithMeta(
 			depth,
 		};
 	});
+	const renderedSource = nestRenderedSubgraphs(
+		diagram.render(),
+		new Set(
+			originalSubgraphs
+				.filter(
+					(scope) =>
+						isVisibleScope(scope.id) && isEffectivelyExpanded(scope.id),
+				)
+				.map((scope) => scope.id),
+		),
+		parent,
+	);
 	return {
-		source: diagram.render(),
+		source: renderedSource,
 		edgeKeys,
 		labelToId,
 		collapsedScopeIds,

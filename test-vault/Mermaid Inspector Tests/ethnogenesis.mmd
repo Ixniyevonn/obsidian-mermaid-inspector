@@ -1,0 +1,37 @@
+flowchart TB
+    subgraph World_State
+        direction TB
+        subgraph Landscapes
+            Position_Landscape
+            Handles_Neighbors
+            class Position_Landscape,Handles_Neighbors tech_field
+            subgraph Climate
+                Biome
+                Temperature
+                Precipitation
+                Wind
+                %%geology%%
+                %%vegetation%%
+                %%atmosphere%%
+            end
+            Trait_Vector_Landscape
+        end
+        subgraph Ethnic_Units
+            direction TB
+            Trait_Vector_Ethnic
+            Ethnic_Views
+            Lifestory_Graphs
+        end
+    end
+
+    subgraph Simulation_Pipeline
+    end
+    World_State --->|state write| Simulation_Pipeline
+    Simulation_Pipeline --->|state read| World_State
+    
+    classDef model fill:#1e293b,stroke:#94a3b8,color:#e2e8f0
+    class Traits,Ethnic_Views,Lifestory_Graphs,Landscapes,Ethnic_Units model
+
+    classDef field fill:#1e293b,stroke:#94a3b8,color:#e2e8f0
+    class Trait_Vector_Ls,Trait_Vector_EU field
+    classDef tech_field fill:#1e293b,stroke:#94a3b8,color:#e2e8f0
