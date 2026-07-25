@@ -1,21 +1,36 @@
 <script lang="ts">
-import type { Snippet } from "svelte";
-import { fitCamera, interpolateCamera } from "../utils/camera";
+import { type Snippet, untrack } from "svelte";
+import {
+	type CameraState,
+	fitCamera,
+	interpolateCamera,
+} from "../utils/camera";
 
 let {
 	children,
 	transitionDuration = 320,
-}: { children: Snippet; transitionDuration?: number } = $props();
+	initialCamera = { panX: 0, panY: 0, zoom: 1 },
+	onCameraChange,
+}: {
+	children: Snippet;
+	transitionDuration?: number;
+	initialCamera?: CameraState;
+	onCameraChange?: (camera: CameraState) => void;
+} = $props();
+const restoredCamera = untrack(() => ({ ...initialCamera }));
 let viewport: HTMLDivElement;
-let panX = $state(0),
-	panY = $state(0),
-	zoom = $state(1);
+let panX = $state(restoredCamera.panX),
+	panY = $state(restoredCamera.panY),
+	zoom = $state(restoredCamera.zoom);
 let pointerId = $state<number | null>(null);
 let origin = { x: 0, y: 0, panX: 0, panY: 0 };
 let cameraFrame: number | null = null;
 function cancelCameraAnimation() {
 	if (cameraFrame !== null) cancelAnimationFrame(cameraFrame);
 	cameraFrame = null;
+}
+function reportCamera() {
+	onCameraChange?.({ panX, panY, zoom });
 }
 function down(event: PointerEvent) {
 	if (
@@ -39,6 +54,7 @@ function up(event: PointerEvent) {
 	if (pointerId !== event.pointerId) return;
 	viewport.releasePointerCapture(event.pointerId);
 	pointerId = null;
+	reportCamera();
 }
 function wheel(event: WheelEvent) {
 	event.preventDefault();
@@ -53,12 +69,14 @@ function wheel(event: WheelEvent) {
 	panX = x - ((x - panX) * next) / zoom;
 	panY = y - ((y - panY) * next) / zoom;
 	zoom = next;
+	reportCamera();
 }
 export function fit(bounds?: DOMRect | SVGRect, animate = true) {
 	const target = fitCamera(viewport.getBoundingClientRect(), bounds);
 	cancelCameraAnimation();
 	if (!animate || transitionDuration <= 0) {
 		({ panX, panY, zoom } = target);
+		reportCamera();
 		return;
 	}
 	const start = performance.now();
@@ -71,7 +89,10 @@ export function fit(bounds?: DOMRect | SVGRect, animate = true) {
 		));
 		if (now - start < transitionDuration)
 			cameraFrame = requestAnimationFrame(frame);
-		else cameraFrame = null;
+		else {
+			cameraFrame = null;
+			reportCamera();
+		}
 	};
 	cameraFrame = requestAnimationFrame(frame);
 }

@@ -1,24 +1,46 @@
 <script lang="ts">
-import { tick } from "svelte";
+import { setIcon } from "obsidian";
+import { tick, untrack } from "svelte";
+import { groupBackgroundElements } from "../utils/focusContext";
+import {
+	type InspectorState,
+	normalizeInspectorState,
+} from "../utils/inspectorState";
 import { postProcessAndTag, renderMermaidToSvg } from "../utils/mermaidRender";
+import {
+	getViewSourceWithMeta,
+	isBlankMermaidSource,
+	type ScopeInfo,
+} from "../utils/mermaidView";
+import { changeFocus, collapseScope } from "../utils/scopeState";
 import {
 	captureVisualRects,
 	centerDelta,
+	runCancelableTransition,
 	screenDeltaToLocal,
 	screenRectToLocalBounds,
-	runCancelableTransition,
 	type VisualRects,
 } from "../utils/svgAnimation";
-import { groupBackgroundElements } from "../utils/focusContext";
-import { changeFocus, collapseScope } from "../utils/scopeState";
-import { getViewSourceWithMeta, isBlankMermaidSource, type ScopeInfo } from "../utils/mermaidView";
 import Canvas from "./Canvas.svelte";
 
-let { source = "", transitionDuration = 320 }: { source: string; transitionDuration: number } = $props();
+let {
+	source = "",
+	transitionDuration = 320,
+	compact = false,
+	initialState,
+	onStateChange,
+}: {
+	source: string;
+	transitionDuration: number;
+	compact?: boolean;
+	initialState?: InspectorState;
+	onStateChange?: (state: InspectorState) => void;
+} = $props();
+const restoredState = untrack(() => normalizeInspectorState(initialState));
 let host: HTMLDivElement, canvas: Canvas;
 let currentSvg: SVGSVGElement | null = null,
-	expanded = new Set<string>();
-let focusPath = $state<string[]>([]),
+	expanded = new Set<string>(restoredState.expanded);
+let focusPath = $state<string[]>([...restoredState.focusPath]),
 	scopes = $state<ScopeInfo[]>([]),
 	scopePaths = $state<Record<string, string[]>>({});
 let error = $state(""),
@@ -26,7 +48,19 @@ let error = $state(""),
 	busy = $state(false),
 	revision = 0;
 let activeTransition: AbortController | null = null;
+let cameraState = restoredState.camera;
+let initializedSource = false;
 const cache = new Map<string, string>();
+function fitIcon(node: HTMLElement) {
+	setIcon(node, "scan");
+}
+function emitState() {
+	onStateChange?.({
+		expanded: [...expanded],
+		focusPath: [...focusPath],
+		camera: { ...cameraState },
+	});
+}
 function ancestors(id: string): string[] {
 	const result: string[] = [];
 	let scope = scopes.find((item) => item.id === id);
@@ -139,10 +173,12 @@ async function animateFrom(
 					outline.setAttribute("width", String(from.width));
 					outline.setAttribute("height", String(from.height));
 					rectMorphs.push({ element: outline, from, to });
-					element.querySelector(".label, .cluster-label, text")?.animate(
-						[{ opacity: 0 }, { opacity: 1 }],
-						{ duration, easing: "ease-out" },
-					);
+					element
+						.querySelector(".label, .cluster-label, text")
+						?.animate([{ opacity: 0 }, { opacity: 1 }], {
+							duration,
+							easing: "ease-out",
+						});
 					continue;
 				}
 			}
@@ -169,8 +205,16 @@ async function animateFrom(
 		}
 		path.animate(
 			[
-				{ opacity: 0, strokeDasharray: `${length} ${length}`, strokeDashoffset: length },
-				{ opacity: 1, strokeDasharray: `${length} ${length}`, strokeDashoffset: 0 },
+				{
+					opacity: 0,
+					strokeDasharray: `${length} ${length}`,
+					strokeDashoffset: length,
+				},
+				{
+					opacity: 1,
+					strokeDasharray: `${length} ${length}`,
+					strokeDashoffset: 0,
+				},
 			],
 			{ duration, easing: "cubic-bezier(.22,1,.36,1)" },
 		);
@@ -225,6 +269,7 @@ function toggleInline(id: string): void {
 	} else {
 		expanded = new Set(expanded).add(id);
 	}
+	emitState();
 	void render(true);
 }
 function click(event: MouseEvent) {
@@ -236,6 +281,7 @@ function applyFocus(path: string[]): void {
 	const next = changeFocus({ expanded, focusPath }, path);
 	expanded = next.expanded;
 	focusPath = next.focusPath;
+	emitState();
 	void render(true);
 }
 function contextMenu(event: MouseEvent) {
@@ -250,39 +296,36 @@ function ascend() {
 }
 $effect(() => {
 	source;
-	expanded = new Set();
-	focusPath = [];
+	if (initializedSource) {
+		expanded = new Set();
+		focusPath = [];
+		cameraState = { panX: 0, panY: 0, zoom: 1 };
+	} else initializedSource = true;
 	cache.clear();
-	if (host) void render(false, true);
+	if (host) void render(false, !initialState);
 });
 </script>
 <svelte:window onkeydown={(event) => { if (event.key === "Escape") ascend(); }} />
-<section class="mi-root" aria-busy={busy}>
-	<header class="mi-header">
-		<nav class="mi-focus-path" aria-label="Focused Mermaid scope">
-			<button
-				class="mi-breadcrumb"
-				aria-current={focusPath.length === 0 ? "page" : undefined}
-				onclick={() => applyFocus([])}
-			>Diagram</button>
-			{#each focusPath as id, index}
-				<span class="mi-breadcrumb-separator" aria-hidden="true">/</span>
-				<button
-					class="mi-breadcrumb"
-					aria-current={index === focusPath.length - 1 ? "page" : undefined}
-					title={scopes.find((scope) => scope.id === id)?.label ?? id}
-					onclick={() => applyFocus(focusPath.slice(0, index + 1))}
-				>{scopes.find((scope) => scope.id === id)?.label ?? id}</button>
-			{/each}
-		</nav>
-		<div class="mi-header-actions">
-			<button onclick={() => canvas.fit(currentSvg?.viewBox?.baseVal)}>Fit</button>
-		</div>
-	</header>
+<section class:mi-compact={compact} class="mi-root" aria-busy={busy}>
+	{#if !compact}
+		<header class="mi-header">
+			<nav class="mi-focus-path" aria-label="Focused Mermaid scope">
+				<button class="mi-breadcrumb" aria-current={focusPath.length === 0 ? "page" : undefined} onclick={() => applyFocus([])}>Diagram</button>
+				{#each focusPath as id, index}
+					<span class="mi-breadcrumb-separator" aria-hidden="true">/</span>
+					<button class="mi-breadcrumb" aria-current={index === focusPath.length - 1 ? "page" : undefined} title={scopes.find((scope) => scope.id === id)?.label ?? id} onclick={() => applyFocus(focusPath.slice(0, index + 1))}>{scopes.find((scope) => scope.id === id)?.label ?? id}</button>
+				{/each}
+			</nav>
+			<div class="mi-header-actions">
+				<button class="clickable-icon mi-fit-button" use:fitIcon aria-label="Fit diagram" title="Fit diagram" onclick={() => canvas.fit(currentSvg?.viewBox?.baseVal)}></button>
+			</div>
+		</header>
+	{/if}
 	<div class="mi-canvas">
+		{#if compact}<button class="clickable-icon mi-fit-button mi-fit-overlay" use:fitIcon aria-label="Fit diagram" title="Fit diagram" onclick={() => canvas.fit(currentSvg?.viewBox?.baseVal)}></button>{/if}
 		{#if empty}<div class="mi-empty">Open or create a Mermaid .mmd file</div>{/if}
 		{#if error}<div class="mi-error" role="alert"><strong>Could not render Mermaid</strong><pre>{error}</pre></div>{/if}
-		<Canvas bind:this={canvas} {transitionDuration}><div class="mi-diagram-host" bind:this={host}></div></Canvas>
+		<Canvas bind:this={canvas} {transitionDuration} initialCamera={restoredState.camera} onCameraChange={(camera) => { cameraState = camera; emitState(); }}><div class="mi-diagram-host" bind:this={host}></div></Canvas>
 	</div>
-	<footer class="mi-footer">Click: inline <span aria-hidden="true">·</span> Right-click: focus <span aria-hidden="true">·</span> Drag: pan <span aria-hidden="true">·</span> Wheel: zoom <span aria-hidden="true">·</span> Esc: up</footer>
+	{#if !compact}<footer class="mi-footer">Click: inline <span aria-hidden="true">&middot;</span> Right-click: focus <span aria-hidden="true">&middot;</span> Drag: pan <span aria-hidden="true">&middot;</span> Wheel: zoom <span aria-hidden="true">&middot;</span> Esc: up</footer>{/if}
 </section>

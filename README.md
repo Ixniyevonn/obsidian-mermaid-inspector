@@ -91,3 +91,12 @@ Mirror your `obsidian-viewpoint` example exactly:
 - Viewport must support pan and zoom so the diagram remains usable after layout shifts.
 - Parser must correctly classify boundary-crossing edges so generators can attach them to ports.
 - stateDiagram-v2 composites use identical scope model and generator rules as flowchart subgraphs.
+## Embed in a Markdown note
+
+Embed an `.mmd` diagram with Obsidian's standard internal-embed syntax:
+
+```md
+![[Diagrams/Example.mmd]]
+```
+
+Embedded inspectors use a compact view with only a Fit icon. Expansion, focus, pan, and zoom are persisted separately for each host Markdown file and embedded diagram.

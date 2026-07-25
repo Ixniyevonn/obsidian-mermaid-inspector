@@ -17,4 +17,11 @@ describe("test-vault Mermaid fixtures", () => {
 		);
 		expect(diagram.subgraphs.some((scope) => scope.id === "Empty")).toBe(true);
 	});
+
+	it("includes a Markdown fixture using Obsidian embed syntax", async () => {
+		const markdown = await Bun.file(
+			"test-vault/Mermaid Inspector Tests/09 Embedded inspector.md",
+		).text();
+		expect(markdown).toContain("![[08 Comprehensive edge cases.mmd]]");
+	});
 });

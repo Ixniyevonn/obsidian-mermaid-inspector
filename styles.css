@@ -87,3 +87,30 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.mi-fit-button {
+  border: 0;
+  box-shadow: none;
+}
+.mi-fit-overlay {
+  position: absolute;
+  z-index: 4;
+  top: 8px;
+  right: 8px;
+}
+.mermaid-inspector-embed {
+  display: block;
+  width: 100%;
+  height: min(62vh, 560px);
+  min-height: 280px;
+  margin: 1em 0;
+  overflow: hidden;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+}
+.mermaid-inspector-embed .mi-root {
+  min-height: 280px;
+}
+.mi-compact .mi-canvas {
+  height: 100%;
+}
