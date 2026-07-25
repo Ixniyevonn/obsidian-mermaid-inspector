@@ -136,3 +136,27 @@ describe("getViewSourceWithMeta — content-based edge keys", () => {
 		expect(edgeKeys.some((k) => k.includes("Enter"))).toBe(false);
 	});
 });
+describe("getViewSourceWithMeta — Mermaid syntax compatibility", () => {
+	it("accepts Mermaid comment lines", () => {
+		const source = `flowchart LR
+  %% This is a valid Mermaid comment.
+  A --> B
+`;
+
+		const meta = getViewSourceWithMeta(new Set(), source);
+
+		expect(meta.source).toContain("A --> B");
+	});
+
+	it("passes newer Mermaid syntax through unchanged when mermaid-ast lags behind", () => {
+		const source = `flowchart LR
+  A@{ shape: rounded, label: "Start" } --> B
+`;
+
+		const meta = getViewSourceWithMeta(new Set(), source);
+
+		expect(meta.source).toBe(source);
+		expect(meta.scopes).toEqual([]);
+		expect(meta.edgeKeys).toEqual([]);
+	});
+});

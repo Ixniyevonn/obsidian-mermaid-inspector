@@ -21,6 +21,17 @@ export interface ViewSourceMeta {
 	scopes: ScopeInfo[];
 }
 
+function passthroughMeta(source: string): ViewSourceMeta {
+	return {
+		source,
+		edgeKeys: [],
+		labelToId: {},
+		collapsedScopeIds: [],
+		emptyScopeIds: [],
+		scopePathByElementId: {},
+		scopes: [],
+	};
+}
 function labelOf(value: unknown, fallback: string): string {
 	if (typeof value === "string" && value.trim())
 		return value.replace(/^["']|["']$/g, "");
@@ -44,8 +55,17 @@ export function getViewSourceWithMeta(
 	expanded: Set<string>,
 	fullSource: string,
 ): ViewSourceMeta {
-	const diagram = Flowchart.parse(fullSource);
+	let diagram: Flowchart;
+	try {
+		diagram = Flowchart.parse(fullSource);
+	} catch {
+		// Mermaid is the rendering authority. mermaid-ast powers the optional
+		// hierarchy controls, but it can lag behind Mermaid's evolving syntax.
+		// Preserve the original source so supported diagrams still render.
+		return passthroughMeta(fullSource);
+	}
 	const liveSubgraphs = diagram.subgraphs as FlowchartSubgraph[];
+	if (liveSubgraphs.length === 0) return passthroughMeta(fullSource);
 	const originalSubgraphs = liveSubgraphs.map((scope) => ({
 		...scope,
 		nodes: [...scope.nodes],
