@@ -1,7 +1,7 @@
 {
 	"name": "obsidian-mermaid-inspector",
 	"private": true,
-	"version": "0.1.4",
+	"version": "0.1.5",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {

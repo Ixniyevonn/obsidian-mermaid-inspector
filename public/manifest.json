@@ -3,7 +3,7 @@
 	"name": "Mermaid Inspector",
 	"description": "Custom view for .mmd files with interactive subgraph inspection. Subgraphs render as collapsed blocks; left click to expand, right click to dive in into focus mode. Transitions are animated and configurable. Inlining using ![[]] is supported in view mode.",
 	"author": "Ixniyevonn",
-	"version": "0.1.4",
+	"version": "0.1.5",
 	"minAppVersion": "0.15.0",
 	"isDesktopOnly": false
 }
