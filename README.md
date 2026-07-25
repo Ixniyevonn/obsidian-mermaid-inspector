@@ -45,3 +45,25 @@ bun run build
 ```
 
 A production build is written to `build/` and copied to the plugin directory in `test-vault`.
+## Install with BRAT
+
+1. Install **BRAT** from Obsidian's Community Plugins browser.
+2. Open **Settings → BRAT → Add Beta plugin**.
+3. Paste this repository's GitHub URL.
+4. Enable **Mermaid Inspector** under Community Plugins.
+
+BRAT installs the latest GitHub Release. Repository source files alone are not an installable plugin build.
+
+## Releasing
+
+Keep the version in `package.json`, both manifest files, and both versions files synchronized. Then verify and tag the release:
+
+```sh
+bun run verify:release
+bun test
+bun run check
+git tag 0.1.0
+git push origin 0.1.0
+```
+
+The GitHub workflow validates the repository, builds with Bun, creates a release whose tag matches the manifest version, and attaches `main.js`, `manifest.json`, and `styles.css` for BRAT.
