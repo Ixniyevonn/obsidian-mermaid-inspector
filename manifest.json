@@ -3,7 +3,7 @@
 	"name": "Mermaid Inspector",
 	"description": "Custom view for .mmd files with interactive subgraph inspection. Subgraphs render as collapsed blocks; left click to expand, right click to dive in into focus mode. Transitions are animated and configurable. Markdown embeds and .mmd file nodes in Canvas are supported.",
 	"author": "Ixniyevonn",
-	"version": "0.1.7",
+	"version": "0.1.8",
 	"minAppVersion": "0.15.0",
 	"isDesktopOnly": false
 }

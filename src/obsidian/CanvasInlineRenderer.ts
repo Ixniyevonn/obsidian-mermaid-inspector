@@ -1,12 +1,14 @@
 import { Component, TFile, type WorkspaceLeaf } from "obsidian";
 import type MermaidInspectorPlugin from "../main";
-import { isMermaidCanvasFile } from "./canvasNode";
+import { hasConnectedCanvasContent, isMermaidCanvasFile } from "./canvasNode";
 import { EmbeddedInspector } from "./EmbeddedInspector";
 
 interface CanvasNode {
 	id: string;
 	file?: TFile;
-	contentEl: HTMLElement;
+	contentEl?: HTMLElement;
+	isEditing?: boolean;
+	setIsEditing?(editing: boolean): void;
 }
 
 interface Canvas {
@@ -23,6 +25,9 @@ interface CanvasView {
 interface MountedNode {
 	child: EmbeddedInspector;
 	container: HTMLElement;
+	contentEl: HTMLElement;
+	stopNavigation: (event: MouseEvent) => void;
+	wasEditing: boolean;
 }
 
 function canvasFromLeaf(leaf: WorkspaceLeaf): Canvas | null {
@@ -41,6 +46,7 @@ function canvasFromLeaf(leaf: WorkspaceLeaf): Canvas | null {
 export class CanvasInlineRenderer extends Component {
 	private readonly observers = new Map<Canvas, MutationObserver>();
 	private readonly mounted = new Map<CanvasNode, MountedNode>();
+	private readonly activatedNodes = new WeakSet<CanvasNode>();
 
 	constructor(private readonly plugin: MermaidInspectorPlugin) {
 		super();
@@ -56,6 +62,10 @@ export class CanvasInlineRenderer extends Component {
 	onunload(): void {
 		for (const observer of this.observers.values()) observer.disconnect();
 		this.observers.clear();
+		for (const [node, mount] of this.mounted) {
+			mount.contentEl.removeEventListener("click", mount.stopNavigation);
+			if (!mount.wasEditing) node.setIsEditing?.(false);
+		}
 		this.mounted.clear();
 	}
 
@@ -75,8 +85,7 @@ export class CanvasInlineRenderer extends Component {
 			this.observers.delete(canvas);
 			for (const [node, mount] of this.mounted) {
 				if (!canvas.nodes.has(node.id)) continue;
-				this.removeChild(mount.child);
-				this.mounted.delete(node);
+				this.removeMount(node, mount);
 			}
 		}
 	}
@@ -99,35 +108,43 @@ export class CanvasInlineRenderer extends Component {
 				node.file instanceof TFile &&
 				isMermaidCanvasFile(node.file) &&
 				mount.container.isConnected &&
-				node.contentEl.contains(mount.container)
+				node.contentEl?.contains(mount.container) === true
 			) {
 				continue;
 			}
-			this.removeChild(mount.child);
-			this.mounted.delete(node);
+			this.removeMount(node, mount);
 		}
 
 		for (const node of activeNodes) {
 			const file = node.file;
+			let contentEl = node.contentEl;
 			if (
 				!(file instanceof TFile) ||
 				!isMermaidCanvasFile(file) ||
-				!node.contentEl.isConnected
+				!hasConnectedCanvasContent(contentEl)
 			) {
 				continue;
+			}
+			const wasEditing =
+				node.isEditing === true && !this.activatedNodes.has(node);
+			if (node.isEditing !== true && node.setIsEditing) {
+				this.activatedNodes.add(node);
+				node.setIsEditing(true);
+				contentEl = node.contentEl;
+				if (!hasConnectedCanvasContent(contentEl)) continue;
 			}
 			const current = this.mounted.get(node);
 			if (
 				current?.container.isConnected &&
-				node.contentEl.contains(current.container)
+				contentEl.contains(current.container)
 			) {
 				continue;
 			}
-			if (current) this.removeChild(current.child);
+			if (current) this.removeMount(node, current);
 
-			const container = node.contentEl.ownerDocument.createElement("div");
+			const container = contentEl.ownerDocument.createElement("div");
 			container.addClass("mermaid-inspector-canvas-node");
-			node.contentEl.replaceChildren(container);
+			contentEl.replaceChildren(container);
 			const canvasPath = canvas.view.file?.path ?? "";
 			const child = new EmbeddedInspector(
 				container,
@@ -135,9 +152,24 @@ export class CanvasInlineRenderer extends Component {
 				`${canvasPath}\0${node.id}\0${file.path}`,
 				this.plugin,
 			);
+			const stopNavigation = (event: MouseEvent) => event.stopPropagation();
+			contentEl.addEventListener("click", stopNavigation);
 			this.addChild(child);
-			this.mounted.set(node, { child, container });
+			this.mounted.set(node, {
+				child,
+				container,
+				contentEl,
+				stopNavigation,
+				wasEditing,
+			});
 		}
+	}
+
+	private removeMount(node: CanvasNode, mount: MountedNode): void {
+		mount.contentEl.removeEventListener("click", mount.stopNavigation);
+		if (!mount.wasEditing) node.setIsEditing?.(false);
+		this.removeChild(mount.child);
+		this.mounted.delete(node);
 	}
 }
 

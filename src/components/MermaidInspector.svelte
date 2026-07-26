@@ -50,11 +50,31 @@ let activeTransition: AbortController | null = null;
 let cameraState = restoredState.camera;
 let initializedSource = false;
 const cache = new Map<string, string>();
+function isolatedButton(
+	node: HTMLElement,
+	icon: string,
+	activate: () => void,
+) {
+	setIcon(node, icon);
+	const stopPointer = (event: PointerEvent) => event.stopPropagation();
+	const click = (event: MouseEvent) => {
+		event.stopPropagation();
+		activate();
+	};
+	node.addEventListener("pointerdown", stopPointer);
+	node.addEventListener("click", click);
+	return {
+		destroy() {
+			node.removeEventListener("pointerdown", stopPointer);
+			node.removeEventListener("click", click);
+		},
+	};
+}
 function fitIcon(node: HTMLElement) {
-	setIcon(node, "scan");
+	return isolatedButton(node, "scan", () => canvas.fit(fitBounds()));
 }
 function externalLinkIcon(node: HTMLElement) {
-	setIcon(node, "external-link");
+	return isolatedButton(node, "external-link", () => onOpenFile?.());
 }
 function fitBounds(svg = currentSvg) {
 	return svg ? focusedFitBounds(svg, focusPath.at(-1)) : undefined;
@@ -153,6 +173,7 @@ function toggleInline(id: string): void {
 	void render(true);
 }
 function click(event: MouseEvent) {
+	event.stopPropagation();
 	const id = target(event);
 	if (!id) return;
 	toggleInline(id);
@@ -165,6 +186,7 @@ function applyFocus(path: string[]): void {
 	void render(true);
 }
 function contextMenu(event: MouseEvent) {
+	event.stopPropagation();
 	const id = target(event);
 	if (!id) return;
 	event.preventDefault();
@@ -197,15 +219,15 @@ $effect(() => {
 				{/each}
 			</nav>
 			<div class="mi-header-actions">
-				<button class="clickable-icon mi-fit-button" use:fitIcon aria-label="Fit diagram" title="Fit diagram" onclick={() => canvas.fit(fitBounds())}></button>
+				<button class="clickable-icon mi-fit-button" use:fitIcon aria-label="Fit diagram" title="Fit diagram"></button>
 			</div>
 		</header>
 	{/if}
 	<div class="mi-canvas">
 		{#if compact}
 		<div class="mi-compact-actions">
-			{#if onOpenFile}<button class="clickable-icon" use:externalLinkIcon aria-label="Open diagram in inspector" title="Open diagram in inspector" onclick={onOpenFile}></button>{/if}
-			<button class="clickable-icon mi-fit-button" use:fitIcon aria-label="Fit diagram" title="Fit diagram" onclick={() => canvas.fit(fitBounds())}></button>
+			{#if onOpenFile}<button class="clickable-icon" use:externalLinkIcon aria-label="Open diagram in inspector" title="Open diagram in inspector"></button>{/if}
+			<button class="clickable-icon mi-fit-button" use:fitIcon aria-label="Fit diagram" title="Fit diagram"></button>
 		</div>
 	{/if}
 		{#if empty}<div class="mi-empty">Open or create a Mermaid .mmd file</div>{/if}

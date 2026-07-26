@@ -36,6 +36,7 @@ function reportCamera() {
 	onCameraChange?.({ panX, panY, zoom });
 }
 function down(event: PointerEvent) {
+	event.stopPropagation();
 	if (
 		event.button !== 1 &&
 		(event.button !== 0 ||
@@ -49,17 +50,20 @@ function down(event: PointerEvent) {
 	viewport.setPointerCapture(event.pointerId);
 }
 function move(event: PointerEvent) {
+	event.stopPropagation();
 	if (pointerId !== event.pointerId) return;
 	panX = origin.panX + event.clientX - origin.x;
 	panY = origin.panY + event.clientY - origin.y;
 }
 function up(event: PointerEvent) {
+	event.stopPropagation();
 	if (pointerId !== event.pointerId) return;
 	viewport.releasePointerCapture(event.pointerId);
 	pointerId = null;
 	reportCamera();
 }
 function wheel(event: WheelEvent) {
+	event.stopPropagation();
 	event.preventDefault();
 	cancelCameraAnimation();
 	const rect = viewport.getBoundingClientRect(),
@@ -73,6 +77,28 @@ function wheel(event: WheelEvent) {
 	panY = y - ((y - panY) * next) / zoom;
 	zoom = next;
 	reportCamera();
+}
+function cameraInput(node: HTMLElement) {
+	const blockNavigation = (event: MouseEvent) => {
+		event.preventDefault();
+		event.stopPropagation();
+	};
+	node.addEventListener("click", blockNavigation);
+	node.addEventListener("pointerdown", down);
+	node.addEventListener("pointermove", move);
+	node.addEventListener("pointerup", up);
+	node.addEventListener("pointercancel", up);
+	node.addEventListener("wheel", wheel, { passive: false });
+	return {
+		destroy() {
+			node.removeEventListener("click", blockNavigation);
+			node.removeEventListener("pointerdown", down);
+			node.removeEventListener("pointermove", move);
+			node.removeEventListener("pointerup", up);
+			node.removeEventListener("pointercancel", up);
+			node.removeEventListener("wheel", wheel);
+		},
+	};
 }
 export function fitWhenReady(bounds?: CameraBounds, animate = false): void {
 	initialFitObserver?.disconnect();
@@ -120,8 +146,13 @@ onDestroy(() => {
 	cancelCameraAnimation();
 });
 </script>
-<div class:dragging={pointerId !== null} class="mi-viewport" bind:this={viewport}
-	onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up}
-	onwheel={wheel} role="application" aria-label="Mermaid diagram canvas">
+<div
+	class:dragging={pointerId !== null}
+	class="mi-viewport"
+	bind:this={viewport}
+	use:cameraInput
+	role="application"
+	aria-label="Mermaid diagram canvas"
+>
 	<div class="mi-world" style:zoom={zoom} style:translate={`${panX / zoom}px ${panY / zoom}px`}>{@render children()}</div>
 </div>

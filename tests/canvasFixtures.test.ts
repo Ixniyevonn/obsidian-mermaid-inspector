@@ -30,7 +30,7 @@ describe("Obsidian Canvas Mermaid file-node fixtures", () => {
 	it("contains multiple independent .mmd file nodes in one Canvas", async () => {
 		const canvas = await readCanvas("11 Multiple Mermaid file nodes.canvas");
 
-		expect(mermaidFiles(canvas)).toEqual([
+		expect(mermaidFiles(canvas).sort()).toEqual([
 			"Mermaid Inspector Tests/01 Simple flowchart.mmd",
 			"Mermaid Inspector Tests/02 Nested subgraphs.mmd",
 			"Mermaid Inspector Tests/03 Deep hierarchy.mmd",
