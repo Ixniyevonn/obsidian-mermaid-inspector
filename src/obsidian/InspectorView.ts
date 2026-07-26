@@ -2,6 +2,7 @@ import { TextFileView, type WorkspaceLeaf } from "obsidian";
 import { mount, unmount } from "svelte";
 import MermaidInspector from "../components/MermaidInspector.svelte";
 import type MermaidInspectorPlugin from "../main";
+import { isCanvasEmbed } from "./canvasEmbed";
 export const VIEW_TYPE = "mermaid-inspector-view";
 export class InspectorView extends TextFileView {
 	private component: ReturnType<typeof mount> | null = null;
@@ -52,10 +53,13 @@ export class InspectorView extends TextFileView {
 		if (!this.contentEl.isConnected) return;
 		if (this.component) void unmount(this.component);
 		this.contentEl.empty();
+		const compact = isCanvasEmbed(this.containerEl);
+		this.contentEl.toggleClass("mermaid-inspector-canvas-embed", compact);
 		this.component = mount(MermaidInspector, {
 			target: this.contentEl,
 			props: {
 				source: this.source,
+				compact,
 				transitionDuration: this.plugin.settings.transitionDuration,
 			},
 		});

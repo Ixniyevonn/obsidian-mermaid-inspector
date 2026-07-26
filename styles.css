@@ -2,6 +2,15 @@
 	padding: 0 !important;
 	height: 100%;
 }
+.mermaid-inspector-canvas-embed {
+	width: 100%;
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+}
+.canvas-node-iframe-body:has(.mermaid-inspector-canvas-embed) {
+	overflow: hidden;
+}
 .mi-root {
 	width: 100%;
 	height: 100%;
@@ -251,6 +260,22 @@
 }
 .mermaid-inspector-embed .mi-root {
 	min-height: 280px;
+}
+.mermaid-inspector-canvas-node {
+	width: 100%;
+	height: 100%;
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+	background: var(--background-primary);
+}
+.mermaid-inspector-canvas-node.mermaid-inspector-embed {
+	margin: 0;
+	border: 0;
+	border-radius: 0;
+}
+.mermaid-inspector-canvas-node .mi-root {
+	min-height: 0;
 }
 .mi-compact .mi-canvas {
 	height: 100%;

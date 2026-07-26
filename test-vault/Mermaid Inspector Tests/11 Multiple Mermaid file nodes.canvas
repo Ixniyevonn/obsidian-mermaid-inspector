@@ -1,0 +1,8 @@
+{
+	"nodes":[
+		{"id":"nested-subgraphs","type":"file","file":"Mermaid Inspector Tests/02 Nested subgraphs.mmd","x":600,"y":0,"width":520,"height":360},
+		{"id":"deep-hierarchy","type":"file","file":"Mermaid Inspector Tests/03 Deep hierarchy.mmd","x":300,"y":440,"width":520,"height":360},
+		{"id":"simple-flowchart","type":"file","file":"Mermaid Inspector Tests/01 Simple flowchart.mmd","x":0,"y":0,"width":520,"height":360}
+	],
+	"edges":[]
+}

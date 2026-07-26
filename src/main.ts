@@ -1,6 +1,7 @@
 import { Notice, normalizePath, Plugin, TFolder } from "obsidian";
 import "../styles.css";
 import { type InspectorState, normalizeInspectorState } from "./diagram/state";
+import { registerCanvasInlineRenderer } from "./obsidian/CanvasInlineRenderer";
 import { InspectorView, VIEW_TYPE } from "./obsidian/InspectorView";
 import { registerMarkdownEmbeds } from "./obsidian/MarkdownEmbedRenderer";
 import { MermaidInspectorSettingTab } from "./obsidian/SettingsTab";
@@ -25,6 +26,7 @@ export default class MermaidInspectorPlugin extends Plugin {
 		this.addSettingTab(new MermaidInspectorSettingTab(this.app, this));
 		this.registerExtensions(["mmd"], VIEW_TYPE);
 		registerMarkdownEmbeds(this);
+		registerCanvasInlineRenderer(this);
 		this.addRibbonIcon("git-branch", "Mermaid Inspector", () => {
 			this.activateView();
 		});

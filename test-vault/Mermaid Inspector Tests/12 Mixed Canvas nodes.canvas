@@ -1,0 +1,8 @@
+{
+	"nodes":[
+		{"id":"instructions","type":"text","text":"The Mermaid file card should be interactive; the Markdown card should remain a normal Canvas file node.","x":0,"y":0,"width":360,"height":180},
+		{"id":"mermaid-file","type":"file","file":"Mermaid Inspector Tests/05 Labels and shapes.mmd","x":440,"y":0,"width":560,"height":380},
+		{"id":"markdown-file","type":"file","file":"Mermaid Inspector Tests/09 Embedded inspector.md","x":0,"y":260,"width":360,"height":280}
+	],
+	"edges":[]
+}
